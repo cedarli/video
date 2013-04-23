@@ -1,0 +1,14 @@
+/Makefile.am/1.1/Wed Feb 25 18:10:26 2004//D2007.09.29.04.00.00
+/SDL_mintaudio.c/1.2/Mon Jan 17 20:46:31 2005//D2007.09.29.04.00.00
+/SDL_mintaudio.h/1.2/Mon Jan 17 20:46:31 2005//D2007.09.29.04.00.00
+/SDL_mintaudio_dma8.c/1.2/Mon Jan 17 20:46:32 2005//D2007.09.29.04.00.00
+/SDL_mintaudio_dma8.h/1.2/Mon Jan 17 20:46:32 2005//D2007.09.29.04.00.00
+/SDL_mintaudio_gsxb.c/1.2/Mon Jan 17 20:46:32 2005//D2007.09.29.04.00.00
+/SDL_mintaudio_gsxb.h/1.1/Wed Feb 25 18:10:26 2004//D2007.09.29.04.00.00
+/SDL_mintaudio_it.S/1.1/Wed Feb 25 18:10:26 2004//D2007.09.29.04.00.00
+/SDL_mintaudio_mcsn.c/1.2/Mon Jan 17 20:46:32 2005//D2007.09.29.04.00.00
+/SDL_mintaudio_mcsn.h/1.1/Wed Feb 25 18:10:26 2004//D2007.09.29.04.00.00
+/SDL_mintaudio_stfa.c/1.2/Mon Jan 17 20:46:32 2005//D2007.09.29.04.00.00
+/SDL_mintaudio_stfa.h/1.1/Wed Feb 25 18:10:26 2004//D2007.09.29.04.00.00
+/SDL_mintaudio_xbios.c/1.2/Mon Jan 17 20:46:32 2005//D2007.09.29.04.00.00
+D

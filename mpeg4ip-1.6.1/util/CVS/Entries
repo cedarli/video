@@ -1,0 +1,15 @@
+/Makefile.am/1.13/Thu Nov 10 22:03:20 2005//D2007.09.29.04.00.00
+/dummy_alsa.m4/1.1/Mon Sep 12 17:58:03 2005//D2007.09.29.04.00.00
+/replaceversion/1.2/Fri Jan  7 19:49:49 2005//D2007.09.29.04.00.00
+/repository_sync.sh/1.7/Fri Jan  7 19:49:49 2005//D2007.09.29.04.00.00
+/sdl_update.sh/1.2/Thu Sep 13 23:03:26 2001//D2007.09.29.04.00.00
+/testfaac.sh/1.2/Mon Oct  6 23:49:35 2003//D2007.09.29.04.00.00
+/testlame.sh/1.1/Mon Oct  7 21:21:52 2002//D2007.09.29.04.00.00
+/testnasm.sh/1.2/Wed Feb 27 20:05:27 2002//D2007.09.29.04.00.00
+/version.sh/1.1/Thu Dec 20 21:24:47 2001//D2007.09.29.04.00.00
+/version_defines.sh/1.1/Fri Jan  7 19:49:49 2005//D2007.09.29.04.00.00
+D/h264////
+D/iptv////
+D/mpeg2////
+D/mpeg4vol////
+D/yuv////

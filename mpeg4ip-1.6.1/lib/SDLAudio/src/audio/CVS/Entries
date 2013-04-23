@@ -1,0 +1,36 @@
+/Makefile.am/1.2/Mon May 17 22:06:26 2004//D2007.09.29.04.00.00
+/SDL_audio.c/1.6/Sat Feb 18 00:57:14 2006//D2007.09.29.04.00.00
+/SDL_audio_c.h/1.2/Wed Sep  7 22:28:00 2005//D2007.09.29.04.00.00
+/SDL_audiocvt.c/1.2/Mon Jan 17 20:46:08 2005//D2007.09.29.04.00.00
+/SDL_audiodev.c/1.1/Wed Feb 25 01:18:49 2004//D2007.09.29.04.00.00
+/SDL_audiodev_c.h/1.1/Wed Feb 25 01:18:49 2004//D2007.09.29.04.00.00
+/SDL_audiomem.c/1.1/Wed Feb 25 01:18:49 2004//D2007.09.29.04.00.00
+/SDL_audiomem.h/1.1/Wed Feb 25 01:18:49 2004//D2007.09.29.04.00.00
+/SDL_mixer.c/1.2/Wed May  5 23:36:23 2004//D2007.09.29.04.00.00
+/SDL_mixer_MMX.h/1.1/Wed Feb 25 01:18:49 2004//D2007.09.29.04.00.00
+/SDL_mixer_MMX_VC.h/1.1/Wed Feb 25 01:18:49 2004//D2007.09.29.04.00.00
+/SDL_mixer_m68k.h/1.1/Wed Feb 25 01:18:49 2004//D2007.09.29.04.00.00
+/SDL_sysaudio.h/1.4/Mon Jan 17 20:46:08 2005//D2007.09.29.04.00.00
+/SDL_wave.h/1.1/Wed Feb 25 01:18:49 2004//D2007.09.29.04.00.00
+/directx.h/1.1/Wed Mar 17 18:17:53 2004//D2007.09.29.04.00.00
+D/alsa////
+D/arts////
+D/baudio////
+D/dc////
+D/disk////
+D/dma////
+D/dmedia////
+D/dsp////
+D/esd////
+D/macrom////
+D/mint////
+D/mme////
+D/nas////
+D/nto////
+D/openbsd////
+D/paudio////
+D/riscos////
+D/sun////
+D/ums////
+D/windib////
+D/windx5////
