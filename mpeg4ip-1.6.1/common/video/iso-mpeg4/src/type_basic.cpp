@@ -317,7 +317,7 @@ Void CMotionVector::computeMV ()
 	iHalfY = m_vctTrueHalfPel.y - iMVY * 2;
 }
 
-Void CMotionVector::setToZero (Void)
+Void CMotionVector::setToZero ()
 {
 	memset (this, 0, sizeof (*this));
 }

@@ -610,7 +610,7 @@ static int create_media_for_iptv (CPlayerSession *psptr,
   session_desc_t *sdp;
 
   name += strlen("iptv://");
-  slash = strchr(name, '/');
+  slash = strchr((char *)name, '/');
   if (slash == NULL || slash == name) {
     psptr->set_message("Invalid iptv content manager");
     return -1;
