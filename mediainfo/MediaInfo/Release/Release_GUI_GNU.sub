@@ -1,0 +1,56 @@
+# MediaInfo
+# Copyright (C) 2002-2012 MediaArea.net SARL, Info@MediaArea.net
+#
+# This program is free software: you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program. If not, see <http:#www.gnu.org/licenses/>.
+#
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+#! /bin/sh
+
+#-----------------------------------------------------------------------
+# $1=OS, $2=Platform
+Release_GUI()
+{
+#-----------------------------------------------------------------------
+# Clean up
+test -e MediaInfo_GUI_$1_$2.tar     && rm    MediaInfo_GUI_$1_$2.tar
+test -e MediaInfo_GUI_$1_$2.tar.bz2 && rm    MediaInfo_GUI_$1_$2.tar.bz2
+test -d MediaInfo_GUI_$1_$2         && rm -r MediaInfo_GUI_$1_$2
+mkdir   MediaInfo_GUI_$1_$2
+
+#-----------------------------------------------------------------------
+# Copying : Exe
+cp ../Project/GNU/GUI/mediainfo-gui MediaInfo_GUI_$1_$2/mediainfo-gui
+cd MediaInfo_GUI_$1_$2
+strip mediainfo-gui
+cd ..
+
+#-----------------------------------------------------------------------
+# Copying : Information file
+cp ../License.html MediaInfo_GUI_$1_$2/
+cp ../History_GUI.txt MediaInfo_GUI_$1_$2/History.txt
+cp ReadMe_GUI_$1.txt MediaInfo_GUI_$1_$2/ReadMe.txt
+
+#-----------------------------------------------------------------------
+# Compressing Archive
+tar jchf MediaInfo_GUI_$1_$2.tar.bz2 MediaInfo_GUI_$1_$2
+
+#-----------------------------------------------------------------------
+# Clean up
+#if "%1"=="SkipCleanUp" goto SkipCleanUp
+#rm -r MediaInfo_GUI_$1_$2
+#:SkipCleanUp
+}
+

@@ -1,0 +1,13 @@
+prefix=/usr/local
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+Unicode=yes
+Libs_Static=${exec_prefix}/lib/libmediainfo.a ${libdir}/libzen.a -lpthread -lz
+la_name=libmediainfo.la
+
+Name: libmediainfo
+Version: 
+Description: MediaInfoLib
+Libs: -L${exec_prefix}/lib -lmediainfo -lzen -lz -lpthread
+Cflags: -I${prefix}/include  -DUNICODE
