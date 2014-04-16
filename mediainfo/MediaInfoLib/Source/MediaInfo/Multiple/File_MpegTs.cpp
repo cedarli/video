@@ -1,21 +1,8 @@
-// File_Mpegts - Info for MPEG Transport Stream files
-// Copyright (C) 2006-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -51,7 +38,6 @@
     #if MEDIAINFO_SEEK
         #include "MediaInfo/Multiple/File_Ibi.h"
     #endif //MEDIAINFO_SEEK
-    #include "MediaInfo/Multiple/File_Ibi_Creation.h"
 #endif //MEDIAINFO_IBI
 using namespace std;
 //---------------------------------------------------------------------------
@@ -154,10 +140,13 @@ File_MpegTs::File_MpegTs()
     #if defined(MEDIAINFO_TSP_YES)
         TSP_Size=0; //No TSP footer
     #endif
+    #ifdef MEDIAINFO_ARIBSTDB24B37_YES
+        FromAribStdB24B37=false;
+    #endif
 
     //Data
     MpegTs_JumpTo_Begin=MediaInfoLib::Config.MpegTs_MaximumOffset_Get();
-    MpegTs_JumpTo_End=32*1024*1024;
+    MpegTs_JumpTo_End=MediaInfoLib::Config.MpegTs_MaximumOffset_Get()/4;
     Searching_TimeStamp_Start=true;
     Complete_Stream=NULL;
     Begin_MaxDuration=MediaInfoLib::Config.ParseSpeed_Get()>=0.8?(int64u)-1:MediaInfoLib::Config.MpegTs_MaximumScanDuration_Get()*27/1000;
@@ -185,10 +174,10 @@ void File_MpegTs::Streams_Accept()
 {
     Fill(Stream_General, 0, General_Format, BDAV_Size?"BDAV":(TSP_Size?"MPEG-TS 188+16":"MPEG-TS"), Unlimited, true, true);
 
-    #if MEDIAINFO_DEMUX
+    #if MEDIAINFO_DEMUX && MEDIAINFO_NEXTPACKET
         if (Config->NextPacket_Get() && Config->Event_CallBackFunction_IsSet())
             Config->Demux_EventWasSent=true;
-    #endif //MEDIAINFO_DEMUX
+    #endif //MEDIAINFO_DEMUX && MEDIAINFO_NEXTPACKET
 }
 
 //---------------------------------------------------------------------------
@@ -318,7 +307,7 @@ void File_MpegTs::Streams_Update_Programs()
             if (Program->second.IsParsed)
             {
                 //Per pid
-                Ztring Languages, Codecs, Formats, StreamKinds, StreamPoss, elementary_PIDs, elementary_PIDs_String, Delay;
+                Ztring Languages, Codecs, Formats, StreamKinds, StreamPoss, elementary_PIDs, elementary_PIDs_String, Delay, LawRating;
                 for (size_t Pos=0; Pos<Program->second.elementary_PIDs.size(); Pos++)
                 {
                     int16u elementary_PID=Program->second.elementary_PIDs[Pos];
@@ -361,6 +350,14 @@ void File_MpegTs::Streams_Update_Programs()
                         if (Complete_Stream->Streams[elementary_PID]->IsPCR)
                         {
                             Delay=Ztring::ToZtring(((float64)Complete_Stream->Streams[elementary_PID]->TimeStamp_Start)/27000, 6);
+                        }
+
+                        //Law rating
+                        if (Complete_Stream->Streams[elementary_PID] && Complete_Stream->Streams[elementary_PID]->Parser)
+                        {
+                            Ztring LawRating_Temp=Complete_Stream->Streams[elementary_PID]->Parser->Retrieve(Stream_General, 0, General_LawRating);
+                            if (!LawRating_Temp.empty())
+                                LawRating+=LawRating_Temp+__T(" / ");;
                         }
                     }
                 }
@@ -408,6 +405,12 @@ void File_MpegTs::Streams_Update_Programs()
                         for (std::map<std::string, ZenLib::Ztring>::iterator Info=Program->second.Infos.begin(); Info!=Program->second.Infos.end(); ++Info)
                             Fill(Stream_Menu, StreamPos_Last, Info->first.c_str(), Info->second, true);
                         Program->second.Infos.clear();
+                        for (std::map<std::string, ZenLib::Ztring>::iterator Info=Program->second.ExtraInfos_Content.begin(); Info!=Program->second.ExtraInfos_Content.end(); ++Info)
+                            Fill(Stream_Menu, StreamPos_Last, Info->first.c_str(), Info->second, true);
+                        Program->second.ExtraInfos_Content.clear();
+                        for (std::map<std::string, ZenLib::Ztring>::iterator Info=Program->second.ExtraInfos_Option.begin(); Info!=Program->second.ExtraInfos_Option.end(); ++Info)
+                            (*Stream_More)[Stream_Menu][StreamPos_Last](Ztring().From_Local(Info->first.c_str()), Info_Options)=Info->second;
+                        Program->second.ExtraInfos_Option.clear();
 
                         if (!Formats.empty())
                             Formats.resize(Formats.size()-3);
@@ -430,6 +433,11 @@ void File_MpegTs::Streams_Update_Programs()
                         if (!Languages.empty())
                             Languages.resize(Languages.size()-3);
                         Fill(Stream_Menu, StreamPos_Last, Menu_Language, Languages, true);
+                        if (!LawRating.empty())
+                            LawRating.resize(LawRating.size()-3);
+                        Fill(Stream_Menu, StreamPos_Last, "LawRating", LawRating, true);
+                        if (!LawRating.empty() && StreamPos_Last)
+                            Clear(Stream_General, 0, General_LawRating); //More than 1 menu, can not be in General part
                     }
                 }
 
@@ -469,6 +477,9 @@ void File_MpegTs::Streams_Update_Programs_PerStream(size_t StreamID)
     //No direct handling of Sub streams;
     if (Temp->stream_type==0x20 && Temp->SubStream_pid) //Stereoscopic is not alone
         return;
+
+    if (Temp->Parser)
+        Temp->Parser->Open_Buffer_Update();
 
     //Merging from a previous merge
     size_t Count;
@@ -519,7 +530,7 @@ void File_MpegTs::Streams_Update_Programs_PerStream(size_t StreamID)
         }
 
         //By the descriptors
-        if (StreamKind_Last==Stream_Max && Complete_Stream->transport_stream_id_IsValid && !Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs.empty())
+        if (StreamKind_Last==Stream_Max && Complete_Stream->transport_stream_id_IsValid && !Temp->program_numbers.empty() && !Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs.empty())
         {
             int32u format_identifier=Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs[Temp->program_numbers[0]].registration_format_identifier;
             if (Temp->IsRegistered
@@ -533,8 +544,18 @@ void File_MpegTs::Streams_Update_Programs_PerStream(size_t StreamID)
             }
         }
 
+        //By registration_format_identifier
+        if (StreamKind_Last==Stream_Max && Temp->registration_format_identifier && Temp->IsRegistered && Mpeg_Descriptors_registration_format_identifier_StreamKind(Temp->registration_format_identifier)!=Stream_Max)
+        {
+            StreamKind_Last=Mpeg_Descriptors_registration_format_identifier_StreamKind(Temp->registration_format_identifier);
+            Stream_Prepare(StreamKind_Last);
+            Fill(StreamKind_Last, StreamPos_Last, Fill_Parameter(StreamKind_Last, Generic_Format), Mpeg_Descriptors_registration_format_identifier_Format(Temp->registration_format_identifier));
+            Fill(StreamKind_Last, StreamPos_Last, Fill_Parameter(StreamKind_Last, Generic_Codec), Mpeg_Descriptors_registration_format_identifier_Format(Temp->registration_format_identifier));
+            Count=1;
+        }
+
         //By the stream_type
-        if (StreamKind_Last==Stream_Max && Complete_Stream->transport_stream_id_IsValid && !Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs.empty())
+        if (StreamKind_Last==Stream_Max && Complete_Stream->transport_stream_id_IsValid && !Temp->program_numbers.empty() && !Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs.empty())
         {
             int32u format_identifier=Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs[Temp->program_numbers[0]].registration_format_identifier;
             if (Mpeg_Psi_stream_type_StreamKind(Temp->stream_type, format_identifier)!=Stream_Max && (Temp->IsRegistered || ForceStreamDisplay || format_identifier==Elements::HDMV))
@@ -553,7 +574,7 @@ void File_MpegTs::Streams_Update_Programs_PerStream(size_t StreamID)
         }
 
         //By the StreamKind
-        if (StreamKind_Last==Stream_Max && Temp->StreamKind_FromDescriptor!=Stream_Max && (Temp->IsRegistered || ForceStreamDisplay || Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs[Temp->program_numbers[0]].registration_format_identifier==Elements::HDMV))
+        if (StreamKind_Last==Stream_Max && Temp->StreamKind_FromDescriptor!=Stream_Max && (Temp->IsRegistered || ForceStreamDisplay || (!Temp->program_numbers.empty() && Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs[Temp->program_numbers[0]].registration_format_identifier==Elements::HDMV)))
         {
             Stream_Prepare(Temp->StreamKind_FromDescriptor);
             Count=1;
@@ -581,6 +602,9 @@ void File_MpegTs::Streams_Update_Programs_PerStream(size_t StreamID)
                     Fill(StreamKind_Last, StreamPos, Info->first.c_str(), Info->second, true);
             }
             Temp->Infos.clear();
+            for (std::map<std::string, ZenLib::Ztring>::iterator Info=Temp->Infos_Option.begin(); Info!=Temp->Infos_Option.end(); ++Info)
+                (*Stream_More)[StreamKind_Last][StreamPos](Ztring().From_Local(Info->first.c_str()), Info_Options)=Info->second;
+            Temp->Infos_Option.clear();
 
             //Common
             if (Temp->SubStream_pid!=0x0000) //Wit a substream
@@ -591,7 +615,7 @@ void File_MpegTs::Streams_Update_Programs_PerStream(size_t StreamID)
                 if (!Format_Profile.empty() && Complete_Stream->Streams[Temp->SubStream_pid] && Complete_Stream->Streams[Temp->SubStream_pid]->Parser)
                     Fill(Stream_Video, StreamPos, Video_Format_Profile, Complete_Stream->Streams[Temp->SubStream_pid]->Parser->Retrieve(Stream_Video, 0, Video_Format_Profile)+__T(" / ")+Format_Profile, true);
             }
-            else if (Count>1)
+            else if (Count>1 || (StreamKind_Last==Stream_Text && Retrieve(StreamKind_Last, StreamPos, General_ID).find(__T('-'))!=string::npos))
             {
                 Ztring ID=Retrieve(StreamKind_Last, StreamPos, General_ID);
                 size_t ID_Pos=ID.find(__T('-'));
@@ -601,8 +625,18 @@ void File_MpegTs::Streams_Update_Programs_PerStream(size_t StreamID)
                 size_t ID_String_Pos=ID_String.find(__T('-'));
                 if (ID_String_Pos!=string::npos)
                     ID_String.erase(ID_String.begin(), ID_String.begin()+ID_String_Pos+1); //Removing the PS part
-                Fill(StreamKind_Last, StreamPos, General_ID, Ztring::ToZtring(StreamID)+__T('-')+ID, true);
-                Fill(StreamKind_Last, StreamPos, General_ID_String, Decimal_Hexa(StreamID)+__T('-')+ID_String, true);
+                #ifdef MEDIAINFO_ARIBSTDB24B37_YES
+                    if (FromAribStdB24B37)
+                    {
+                        Fill(StreamKind_Last, StreamPos, General_ID, ID, true);
+                        Fill(StreamKind_Last, StreamPos, General_ID_String, ID_String, true);
+                    }
+                    else
+                #endif //MEDIAINFO_ARIBSTDB24B37_YES
+                    {
+                        Fill(StreamKind_Last, StreamPos, General_ID, Ztring::ToZtring(StreamID)+__T('-')+ID, true);
+                        Fill(StreamKind_Last, StreamPos, General_ID_String, Decimal_Hexa(StreamID)+__T('-')+ID_String, true);
+                    }
             }
             else
             {
@@ -641,10 +675,45 @@ void File_MpegTs::Streams_Update_Programs_PerStream(size_t StreamID)
         }
 
         //Special cases
-        if (Temp->Parser && Temp->Parser->Count_Get(Stream_Video) && Temp->Parser->Count_Get(Stream_Text))
+        if (Temp->Parser && Temp->Parser->Count_Get(Stream_Video))
         {
-            //Video and Text are together
+            //Video and Text may be together
+
+            //Retrieving IDs
+            int16u ID_Video=Retrieve(Stream_Video, StreamPos_Last, Text_ID).To_int16u();
+
+            //Language
+            std::map<int8u, string>  Eia708_Languages; //Key is caption_service_number
+            Eia708_Languages.insert(Temp->Eia708_Languages.begin(), Temp->Eia708_Languages.end()); //708 from video descriptor
+            bool Eia608_FromDescriptor=Temp->Eia608_IsPresent;
+            for (size_t ProgramPos=0; ProgramPos<Complete_Stream->Streams[ID_Video]->program_numbers.size(); ProgramPos++)
+            {
+                //608 from program descriptor
+                if (!Eia608_FromDescriptor)
+                    Eia608_FromDescriptor=Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs[Complete_Stream->Streams[ID_Video]->program_numbers[ProgramPos]].Eia608_IsPresent;
+
+                //708 from program descriptor
+                Eia708_Languages.insert(Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs[Complete_Stream->Streams[ID_Video]->program_numbers[ProgramPos]].Eia708_Languages.begin(),
+                                        Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs[Complete_Stream->Streams[ID_Video]->program_numbers[ProgramPos]].Eia708_Languages.end());
+
+                //608/708 from ATSC EIT
+                if (Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs[Complete_Stream->Streams[ID_Video]->program_numbers[ProgramPos]].source_id_IsValid)
+                {
+                    int16u source_id=Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs[Complete_Stream->Streams[ID_Video]->program_numbers[ProgramPos]].source_id;
+                    complete_stream::sources::iterator Source=Complete_Stream->Sources.find(source_id);
+                    if (Source!=Complete_Stream->Sources.end())
+                        for (complete_stream::source::atsc_epg_blocks::iterator ATSC_EPG_Block=Source->second.ATSC_EPG_Blocks.begin(); ATSC_EPG_Block!=Source->second.ATSC_EPG_Blocks.end(); ++ATSC_EPG_Block)
+                            for (complete_stream::source::atsc_epg_block::events::iterator Event=ATSC_EPG_Block->second.Events.begin(); Event!=ATSC_EPG_Block->second.Events.end(); ++Event)
+                            {
+                                Eia708_Languages.insert(Event->second.Eia708_Languages.begin(), Event->second.Eia708_Languages.end());
+                                if (!Eia608_FromDescriptor)
+                                    Eia608_FromDescriptor=Event->second.Eia608_IsPresent;
+                            }
+                }
+            }
+
             size_t Text_Count=Temp->Parser->Count_Get(Stream_Text);
+            bool Eia608_IsPresent=false;
             for (size_t Text_Pos=0; Text_Pos<Text_Count; Text_Pos++)
             {
                 Ztring Parser_ID=Temp->Parser->Retrieve(Stream_Text, Text_Pos, Text_ID);
@@ -654,14 +723,98 @@ void File_MpegTs::Streams_Update_Programs_PerStream(size_t StreamID)
                 Ztring ID_String=Retrieve(Stream_Video, Temp->StreamPos, Video_ID_String)+__T('-')+Parser_ID;
                 StreamPos_Last=(size_t)-1;
                 for (size_t Pos=0; Pos<Count_Get(Stream_Text); Pos++)
-                    if (Retrieve(Stream_Text, Pos, Text_ID)==ID && Retrieve(Stream_Video, Pos, "MuxingMode")==Temp->Parser->Retrieve(Stream_Text, Text_Pos, "MuxingMode"))
+                    if (Retrieve(Stream_Text, Pos, Text_ID)==ID && Retrieve(Stream_Text, Pos, "MuxingMode")==Temp->Parser->Retrieve(Stream_Text, Text_Pos, "MuxingMode"))
                     {
                         StreamPos_Last=Pos;
                         break;
                     }
                 if (StreamPos_Last==(size_t)-1)
                     Stream_Prepare(Stream_Text, StreamPos_Last);
+                if (!IsSub)
+                    Fill(Stream_Text, StreamPos_Last, "MuxingMode_MoreInfo", __T("Muxed in Video #")+Ztring().From_Number(Temp->StreamPos+1), true);
                 Merge(*Temp->Parser, Stream_Text, Text_Pos, StreamPos_Last);
+
+                Fill(Stream_Text, StreamPos_Last, Text_ID, ID, true);
+                Fill(Stream_Text, StreamPos_Last, Text_ID_String, ID_String, true);
+                Fill(Stream_Text, StreamPos_Last, General_StreamOrder, Retrieve(Stream_Video, Temp->StreamPos, General_StreamOrder), true);
+                Fill(Stream_Text, StreamPos_Last, Text_MenuID, Retrieve(Stream_Video, Temp->StreamPos, Video_MenuID), true);
+                Fill(Stream_Text, StreamPos_Last, Text_MenuID_String, Retrieve(Stream_Video, Temp->StreamPos, Video_MenuID_String), true);
+                Fill(Stream_Text, StreamPos_Last, Text_Duration, Retrieve(Stream_Video, Temp->StreamPos, Video_Duration), true);
+                Fill(Stream_Text, StreamPos_Last, Text_Delay, Retrieve(Stream_Video, Temp->StreamPos, Video_Delay), true);
+                Fill(Stream_Text, StreamPos_Last, Text_Delay_Source, Retrieve(Stream_Video, Temp->StreamPos, Video_Delay_Source), true);
+
+                if (Retrieve(Stream_Text, StreamPos_Last, Text_Format).find(__T("EIA-708"))!=string::npos && Retrieve(Stream_Text, StreamPos_Last, Text_Language).empty())
+                {
+                    Ztring ID_Complete=Retrieve(Stream_Text, StreamPos_Last, Text_ID);
+                    int8u  ID_Text=Ztring(ID_Complete.substr(ID_Complete.rfind(__T('-'))+1, string::npos)).To_int8u();
+                    std::map<int8u, string>::iterator Language=Eia708_Languages.find(ID_Text);
+                    if (Language!=Eia708_Languages.end())
+                    {
+                        Fill(Stream_Text, StreamPos_Last, Text_Language, Language->second);
+                        Eia708_Languages.erase(Language);
+                    }
+                }
+                if (Retrieve(Stream_Text, StreamPos_Last, Text_Format).find(__T("EIA-608"))!=string::npos)
+                    Eia608_IsPresent=true;
+            }
+
+            //Undetected text streams but present is service_descriptor - 608
+            if (Eia608_FromDescriptor && !Eia608_IsPresent)
+            {
+                Ztring ID=Retrieve(Stream_Video, Temp->StreamPos, Video_ID)+__T("-608");
+                Ztring ID_String=Retrieve(Stream_Video, Temp->StreamPos, Video_ID_String)+__T("-608");
+                StreamPos_Last=(size_t)-1;
+                for (size_t Pos=0; Pos<Count_Get(Stream_Text); Pos++)
+                    if (Retrieve(Stream_Text, Pos, Text_ID)==ID && Retrieve(Stream_Text, Pos, "MuxingMode")==__T("A/53 / DTVCC Transport"))
+                    {
+                        StreamPos_Last=Pos;
+                        break;
+                    }
+
+                if (StreamPos_Last==(size_t)-1)
+                {
+                    Stream_Prepare(Stream_Text, StreamPos_Last);
+                    Fill(Stream_Text, StreamPos_Last, Text_Format, "EIA-608");
+                    Fill(Stream_Text, StreamPos_Last, Text_StreamSize, 0);
+                    Fill(Stream_Text, StreamPos_Last, Text_BitRate_Mode, "CBR");
+                    Fill(Stream_Text, StreamPos_Last, "MuxingMode", __T("A/53 / DTVCC Transport"));
+                }
+
+                if (!IsSub)
+                    Fill(Stream_Text, StreamPos_Last, "MuxingMode_MoreInfo", __T("Muxed in Video #")+Ztring().From_Number(Temp->StreamPos+1), true);
+                Fill(Stream_Text, StreamPos_Last, Text_ID, ID, true);
+                Fill(Stream_Text, StreamPos_Last, Text_ID_String, ID_String, true);
+                Fill(Stream_Text, StreamPos_Last, General_StreamOrder, Retrieve(Stream_Video, Temp->StreamPos, General_StreamOrder), true);
+                Fill(Stream_Text, StreamPos_Last, Text_MenuID, Retrieve(Stream_Video, Temp->StreamPos, Video_MenuID), true);
+                Fill(Stream_Text, StreamPos_Last, Text_MenuID_String, Retrieve(Stream_Video, Temp->StreamPos, Video_MenuID_String), true);
+                Fill(Stream_Text, StreamPos_Last, Text_Duration, Retrieve(Stream_Video, Temp->StreamPos, Video_Duration), true);
+                Fill(Stream_Text, StreamPos_Last, Text_Delay, Retrieve(Stream_Video, Temp->StreamPos, Video_Delay), true);
+                Fill(Stream_Text, StreamPos_Last, Text_Delay_Source, Retrieve(Stream_Video, Temp->StreamPos, Video_Delay_Source), true);
+            }
+
+            //Undetected text streams but present is service_descriptor - 708
+            for (std::map<int8u, string>::iterator Language=Eia708_Languages.begin(); Language!=Eia708_Languages.end(); ++Language)
+            {
+                //TODO: merge both methods (see above)
+                Ztring Parser_ID=Ztring::ToZtring(Language->first);
+                Ztring ID=Retrieve(Stream_Video, Temp->StreamPos, Video_ID)+__T('-')+Parser_ID;
+                Ztring ID_String=Retrieve(Stream_Video, Temp->StreamPos, Video_ID_String)+__T('-')+Parser_ID;
+                StreamPos_Last=(size_t)-1;
+                for (size_t Pos=0; Pos<Count_Get(Stream_Text); Pos++)
+                    if (Retrieve(Stream_Text, Pos, Text_ID)==ID && Retrieve(Stream_Text, Pos, "MuxingMode")==__T("A/53 / DTVCC Transport"))
+                    {
+                        StreamPos_Last=Pos;
+                        break;
+                    }
+                if (StreamPos_Last==(size_t)-1)
+                {
+                    Stream_Prepare(Stream_Text, StreamPos_Last);
+                    Fill(Stream_Text, StreamPos_Last, Text_ID, Language->first); //TODO: put this in File_Eia708
+                    Fill(Stream_Text, StreamPos_Last, Text_Format, "EIA-708");
+                    Fill(Stream_Text, StreamPos_Last, Text_StreamSize, 0);
+                    Fill(Stream_Text, StreamPos_Last, Text_BitRate_Mode, "CBR");
+                    Fill(Stream_Text, StreamPos_Last, "MuxingMode", __T("A/53 / DTVCC Transport"));
+                }
 
                 if (!IsSub)
                     Fill(Stream_Text, StreamPos_Last, "MuxingMode_MoreInfo", __T("Muxed in Video #")+Ztring().From_Number(Temp->StreamPos+1), true);
@@ -674,46 +827,8 @@ void File_MpegTs::Streams_Update_Programs_PerStream(size_t StreamID)
                 Fill(Stream_Text, StreamPos_Last, Text_Delay, Retrieve(Stream_Video, Temp->StreamPos, Video_Delay), true);
                 Fill(Stream_Text, StreamPos_Last, Text_Delay_Source, Retrieve(Stream_Video, Temp->StreamPos, Video_Delay_Source), true);
 
-                if (Retrieve(Stream_Text, StreamPos_Last, Text_Format).find(__T("EIA-"))!=string::npos)
-                {
-                    //Retrieving IDs
-                    Ztring ID_Complete=Retrieve(Stream_Text, StreamPos_Last, Text_ID);
-                    int16u ID_Video=ID_Complete.To_int16u();
-                    int8u  ID_Text=Ztring(ID_Complete.substr(ID_Complete.rfind(__T('-'))+1, string::npos)).To_int8u();
-                    if (ID_Complete.find(__T("-608-"))!=string::npos) //CEA-608 caption
-                        ID_Text+=128;
-
-                    //ATSC EIT
-                    for (size_t ProgramPos=0; ProgramPos<Complete_Stream->Streams[ID_Video]->program_numbers.size(); ProgramPos++)
-                    {
-                        if (Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs[Complete_Stream->Streams[ID_Video]->program_numbers[ProgramPos]].source_id_IsValid)
-                        {
-                            int16u source_id=Complete_Stream->Transport_Streams[Complete_Stream->transport_stream_id].Programs[Complete_Stream->Streams[ID_Video]->program_numbers[ProgramPos]].source_id;
-                            complete_stream::sources::iterator Source=Complete_Stream->Sources.find(source_id);
-                            if (Source!=Complete_Stream->Sources.end())
-                            {
-                                bool IsFound=false;
-
-                                for (complete_stream::source::atsc_epg_blocks::iterator ATSC_EPG_Block=Source->second.ATSC_EPG_Blocks.begin(); ATSC_EPG_Block!=Source->second.ATSC_EPG_Blocks.end(); ++ATSC_EPG_Block)
-                                {
-                                    for (complete_stream::source::atsc_epg_block::events::iterator Event=ATSC_EPG_Block->second.Events.begin(); Event!=ATSC_EPG_Block->second.Events.end(); ++Event)
-                                    {
-                                        if (!Event->second.Languages[ID_Text].empty())
-                                        {
-                                            Fill(Stream_Text, StreamPos_Last, Text_Language, Event->second.Languages[ID_Text]);
-                                            IsFound=true;
-                                            break;
-                                        }
-                                        if (IsFound)
-                                            break;
-                                    }
-                                    if (IsFound)
-                                        break;
-                                }
-                            }
-                        }
-                    }
-                }
+                //Language
+                Fill(Stream_Text, StreamPos_Last, Text_Language, Language->second);
             }
 
             StreamKind_Last=Temp->StreamKind;
@@ -743,6 +858,24 @@ void File_MpegTs::Streams_Update_Programs_PerStream(size_t StreamID)
                     Fill(StreamKind_Last, StreamPos_Last, Info->first.c_str(), Info->second);
             }
             Teletext->second.Infos.clear();
+        }
+    }
+
+    //Law rating
+    if (Temp->Parser)
+    {
+        Ztring LawRating=Temp->Parser->Retrieve(Stream_General, 0, General_LawRating);
+        if (!LawRating.empty())
+        {
+            if (Count_Get(Stream_Menu))
+            {
+                Ztring MenuID=Retrieve(Temp->StreamKind, Temp->StreamPos, General_MenuID);
+                for (size_t Pos=0; Pos<Count_Get(Stream_Menu); Pos++)
+                    if (Retrieve(Stream_Menu, Pos, General_MenuID)==MenuID)
+                        Fill(Stream_Menu, Pos, "LawRating", LawRating, true);
+            }
+            else
+                Fill(Stream_General, 0, General_LawRating, LawRating, true);
         }
     }
 }
@@ -909,7 +1042,7 @@ void File_MpegTs::Streams_Update_Duration_Update()
         int64u  TimeStamp_Distance_Min=(int64u)-1;
         int64u  TimeStamp_Distance_Max=0;
         int64u  TimeStamp_Distance_Total=0;
-        size_t  TimeStamp_Distance_Count=0;
+        int64u  TimeStamp_Distance_Count=0;
         int64u  TimeStamp_HasProblems=0;
     #endif // MEDIAINFO_ADVANCED
 
@@ -947,7 +1080,7 @@ void File_MpegTs::Streams_Update_Duration_Update()
                 }
 
                 (*Stream)->TimeStamp_End_IsUpdated=false;
-                (*Stream)->IsPCR_Duration=Duration;
+                (*Stream)->IsPCR_Duration=(float64)Duration;
 
                 //Filling menu duration
                 if (Count_Get(Stream_Menu))
@@ -1066,13 +1199,9 @@ void File_MpegTs::Streams_Finish()
     #endif //MEDIAINFO_DUPLICATE
 
     #if MEDIAINFO_IBI
-        if (Config_Ibi_Create)
+        if (!IsSub && Config_Ibi_Create)
         {
-            ibi Ibi_Temp;
             for (ibi::streams::iterator IbiStream_Temp=Ibi.Streams.begin(); IbiStream_Temp!=Ibi.Streams.end(); ++IbiStream_Temp)
-                Ibi_Temp.Streams[IbiStream_Temp->first]=new ibi::stream(*IbiStream_Temp->second);
-
-            for (ibi::streams::iterator IbiStream_Temp=Ibi_Temp.Streams.begin(); IbiStream_Temp!=Ibi_Temp.Streams.end(); ++IbiStream_Temp)
             {
                 if (IbiStream_Temp->second && IbiStream_Temp->second->DtsFrequencyNumerator==1000000000 && IbiStream_Temp->second->DtsFrequencyDenominator==1)
                 {
@@ -1091,12 +1220,6 @@ void File_MpegTs::Streams_Finish()
                     }
                 }
             }
-
-            //IBI Creation
-            File_Ibi_Creation IbiCreation(Ibi_Temp);
-            Ztring IbiText=IbiCreation.Finish();
-            if (!IbiText.empty())
-                Fill(Stream_General, 0, "IBI", IbiText, true);
         }
     #endif //MEDIAINFO_IBI
 }
@@ -1133,7 +1256,11 @@ bool File_MpegTs::Synchronize()
             Buffer_Offset++;
     }
 
-    if (Buffer_Offset+188*16+BDAV_Size*16+TSP_Size*16>=Buffer_Size)
+    if (Buffer_Offset+188*16+BDAV_Size*16+TSP_Size*16>=Buffer_Size
+    #ifdef MEDIAINFO_ARIBSTDB24B37_YES
+     && !FromAribStdB24B37
+    #endif
+        )
         return false;
 
     //Synched is OK
@@ -1428,7 +1555,7 @@ bool File_MpegTs::Synched_Test()
                                                         Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Min_Raw=TimeStamp_InstantaneousBitRate_Current_Raw;
                                                     if (Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Max_Raw<TimeStamp_InstantaneousBitRate_Current_Raw)
                                                         Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Max_Raw=TimeStamp_InstantaneousBitRate_Current_Raw;
-                                                    float64 Distance=(float64)(program_clock_reference-Complete_Stream->Streams[pid]->TimeStamp_End);
+                                                    int64u Distance=program_clock_reference-Complete_Stream->Streams[pid]->TimeStamp_End;
                                                     if (Complete_Stream->Streams[pid]->TimeStamp_Distance_Min>Distance)
                                                         Complete_Stream->Streams[pid]->TimeStamp_Distance_Min=Distance;
                                                     if (Complete_Stream->Streams[pid]->TimeStamp_Distance_Max<Distance)
@@ -1442,7 +1569,7 @@ bool File_MpegTs::Synched_Test()
                                                 {
                                                    if (!discontinuity_indicator)
                                                         Complete_Stream->Streams[pid]->TimeStamp_HasProblems++;
-                                                   float64 Bytes=(float64)(File_Offset+Buffer_Offset-Complete_Stream->Streams[pid]->TimeStamp_End_Offset);;
+                                                   float64 Bytes=(float64)(File_Offset+Buffer_Offset-Complete_Stream->Streams[pid]->TimeStamp_End_Offset);
                                                    int64u TimeToAdd;
                                                    if (Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Current_Raw)
                                                        TimeToAdd=float64_int64s(Bytes*8/Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Current_Raw*27000000);
@@ -1495,7 +1622,8 @@ bool File_MpegTs::Synched_Test()
                                         {
                                             //We are already parsing 16 seconds (for all PCRs), we don't hope to have more info
                                             MpegTs_JumpTo_Begin=File_Offset+Buffer_Offset-Buffer_TotalBytes_FirstSynched;
-                                            MpegTs_JumpTo_End=MpegTs_JumpTo_Begin;
+                                            if (MpegTs_JumpTo_End>MpegTs_JumpTo_Begin)
+                                                MpegTs_JumpTo_End=MpegTs_JumpTo_Begin;
                                         }
                                     }
                                 }
@@ -1518,6 +1646,9 @@ bool File_MpegTs::Synched_Test()
 
         Buffer_Offset+=TS_Size;
     }
+
+    if (File_Offset+Buffer_Size>=File_Size)
+        Detect_EOF(); //for TRP files
 
     return false; //Not enough data
 }
@@ -1548,7 +1679,7 @@ void File_MpegTs::Synched_Init()
 
     //Temp
     MpegTs_JumpTo_Begin=(File_Offset_FirstSynched==(int64u)-1?0:Buffer_TotalBytes_LastSynched)+MediaInfoLib::Config.MpegTs_MaximumOffset_Get();
-    MpegTs_JumpTo_End=32*1024*1024;
+    MpegTs_JumpTo_End=MediaInfoLib::Config.MpegTs_MaximumOffset_Get()/4;
     Buffer_TotalBytes_LastSynched=Buffer_TotalBytes_FirstSynched;
     if (MpegTs_JumpTo_Begin==(int64u)-1 || MpegTs_JumpTo_Begin+MpegTs_JumpTo_End>=File_Size)
     {
@@ -1569,6 +1700,16 @@ void File_MpegTs::Synched_Init()
         Config_VbrDetection_Occurences=MediaInfoLib::Config.MpegTs_VbrDetection_Occurences_Get();
         Config_VbrDetection_GiveUp=MediaInfoLib::Config.MpegTs_VbrDetection_GiveUp_Get();
     #endif // MEDIAINFO_ADVANCED
+
+    #ifdef MEDIAINFO_ARIBSTDB24B37_YES
+        if (FromAribStdB24B37)
+        {
+            #if MEDIAINFO_EVENTS
+                StreamIDs_Width[0]=0;
+            #endif //MEDIAINFO_EVENTS
+            SetAllToPES();
+        }
+    #endif //MEDIAINFO_ARIBSTDB24B37_YES
 
     //Continue, again, for Duplicate and Filter
     Option_Manage();
@@ -1663,30 +1804,7 @@ void File_MpegTs::Read_Buffer_AfterParsing()
              && !Complete_Stream->NoPatPmt)
             {
                 //Activating all streams as PES
-                for (size_t StreamID=0; StreamID<0x2000; StreamID++)
-                {
-                    delete Complete_Stream->Streams[StreamID]; Complete_Stream->Streams[StreamID]=new complete_stream::stream;
-                }
-                for (size_t StreamID=0x20; StreamID<0x1FFF; StreamID++)
-                {
-                    Complete_Stream->Streams_NotParsedCount=(size_t)-1;
-                    Complete_Stream->Streams[StreamID]->Kind=complete_stream::stream::pes;
-                    Complete_Stream->Streams[StreamID]->Searching_Payload_Start_Set(true);
-                    Complete_Stream->Streams[StreamID]->Searching_Payload_Continue_Set(false);
-                    #if MEDIAINFO_TRACE
-                        if (Trace_Activated)
-                            Complete_Stream->Streams[StreamID]->Element_Info1="PES";
-                    #endif //MEDIAINFO_TRACE
-                    #ifdef MEDIAINFO_MPEGTS_PCR_YES
-                        Complete_Stream->Streams[StreamID]->Searching_TimeStamp_Start_Set(true);
-                        Complete_Stream->Streams[StreamID]->Searching_TimeStamp_End_Set(false);
-                    #endif //MEDIAINFO_MPEGTS_PCR_YES
-                    #ifdef MEDIAINFO_MPEGTS_PESTIMESTAMP_YES
-                        Complete_Stream->Streams[StreamID]->Searching_ParserTimeStamp_Start_Set(true);
-                        Complete_Stream->Streams[StreamID]->Searching_ParserTimeStamp_End_Set(false);
-                    #endif //MEDIAINFO_MPEGTS_PESTIMESTAMP_YES
-                }
-                Complete_Stream->NoPatPmt=true;
+                SetAllToPES();
                 Fill(Stream_General, 0, General_Format_Profile, "No PAT/PMT");
                 Buffer_TotalBytes=0;
                 Buffer_TotalBytes_LastSynched=(int64u)-1;
@@ -1747,54 +1865,58 @@ size_t File_MpegTs::Read_Buffer_Seek (size_t Method, int64u Value, int64u ID)
     Seek_Value=(int64u)-1;
     Seek_ID=(int64u)-1;
     InfiniteLoop_Detect=0;
-    Config->Demux_IsSeeking=false;
+    #if MEDIAINFO_DEMUX
+        Config->Demux_IsSeeking=false;
+    #endif //MEDIAINFO_DEMUX
 
     //Init
     if (!Duration_Detected)
     {
         //External IBI
-        std::string IbiFile=Config->Ibi_Get();
-        if (!IbiFile.empty())
-        {
-            Ibi.Streams.clear(); //TODO: support IBI data from different inputs
-
-            File_Ibi MI;
-            Open_Buffer_Init(&MI, IbiFile.size());
-            MI.Ibi=&Ibi;
-            MI.Open_Buffer_Continue((const int8u*)IbiFile.c_str(), IbiFile.size());
-        }
-        //Creating base IBI from a quick analysis of the file
-        else
-        {
-            MediaInfo_Internal MI;
-            MI.Option(__T("File_KeepInfo"), __T("1"));
-            Ztring ParseSpeed_Save=MI.Option(__T("ParseSpeed_Get"), __T(""));
-            Ztring Demux_Save=MI.Option(__T("Demux_Get"), __T(""));
-            MI.Option(__T("ParseSpeed"), __T("0"));
-            MI.Option(__T("Demux"), Ztring());
-            Ztring File_Names=Config->File_Names.Read();
-            MI.Option(__T("File_FileNameFormat"), __T("CSV"));
-            size_t MiOpenResult=MI.Open(File_Names);
-            MI.Option(__T("ParseSpeed"), ParseSpeed_Save); //This is a global value, need to reset it. TODO: local value
-            MI.Option(__T("Demux"), Demux_Save); //This is a global value, need to reset it. TODO: local value
-            if (!MiOpenResult)
-                return 0;
-            for (ibi::streams::iterator IbiStream_Temp=((File_MpegTs*)MI.Info)->Ibi.Streams.begin(); IbiStream_Temp!=((File_MpegTs*)MI.Info)->Ibi.Streams.end(); ++IbiStream_Temp)
+        #if MEDIAINFO_IBI
+            std::string IbiFile=Config->Ibi_Get();
+            if (!IbiFile.empty())
             {
-                if (Ibi.Streams[IbiStream_Temp->first]==NULL)
-                    Ibi.Streams[IbiStream_Temp->first]=new ibi::stream(*IbiStream_Temp->second);
-                Ibi.Streams[IbiStream_Temp->first]->Unsynch();
-                for (size_t Pos=0; Pos<IbiStream_Temp->second->Infos.size(); Pos++)
-                {
-                    Ibi.Streams[IbiStream_Temp->first]->Add(IbiStream_Temp->second->Infos[Pos]);
-                    if (!IbiStream_Temp->second->Infos[Pos].IsContinuous)
-                        Ibi.Streams[IbiStream_Temp->first]->Unsynch();
-                }
-                Ibi.Streams[IbiStream_Temp->first]->Unsynch();
+                Ibi.Streams.clear(); //TODO: support IBI data from different inputs
+
+                File_Ibi MI;
+                Open_Buffer_Init(&MI, IbiFile.size());
+                MI.Ibi=&Ibi;
+                MI.Open_Buffer_Continue((const int8u*)IbiFile.c_str(), IbiFile.size());
             }
-            if (Ibi.Streams.empty())
-                return 4; //Problem during IBI file parsing
-        }
+            //Creating base IBI from a quick analysis of the file
+            else
+            {
+                MediaInfo_Internal MI;
+                MI.Option(__T("File_KeepInfo"), __T("1"));
+                Ztring ParseSpeed_Save=MI.Option(__T("ParseSpeed_Get"), __T(""));
+                Ztring Demux_Save=MI.Option(__T("Demux_Get"), __T(""));
+                MI.Option(__T("ParseSpeed"), __T("0"));
+                MI.Option(__T("Demux"), Ztring());
+                Ztring File_Names=Config->File_Names.Read();
+                MI.Option(__T("File_FileNameFormat"), __T("CSV"));
+                size_t MiOpenResult=MI.Open(File_Names);
+                MI.Option(__T("ParseSpeed"), ParseSpeed_Save); //This is a global value, need to reset it. TODO: local value
+                MI.Option(__T("Demux"), Demux_Save); //This is a global value, need to reset it. TODO: local value
+                if (!MiOpenResult)
+                    return 0;
+                for (ibi::streams::iterator IbiStream_Temp=((File_MpegTs*)MI.Info)->Ibi.Streams.begin(); IbiStream_Temp!=((File_MpegTs*)MI.Info)->Ibi.Streams.end(); ++IbiStream_Temp)
+                {
+                    if (Ibi.Streams[IbiStream_Temp->first]==NULL)
+                        Ibi.Streams[IbiStream_Temp->first]=new ibi::stream(*IbiStream_Temp->second);
+                    Ibi.Streams[IbiStream_Temp->first]->Unsynch();
+                    for (size_t Pos=0; Pos<IbiStream_Temp->second->Infos.size(); Pos++)
+                    {
+                        Ibi.Streams[IbiStream_Temp->first]->Add(IbiStream_Temp->second->Infos[Pos]);
+                        if (!IbiStream_Temp->second->Infos[Pos].IsContinuous)
+                            Ibi.Streams[IbiStream_Temp->first]->Unsynch();
+                    }
+                    Ibi.Streams[IbiStream_Temp->first]->Unsynch();
+                }
+                if (Ibi.Streams.empty())
+                    return 4; //Problem during IBI file parsing
+            }
+        #endif //#if MEDIAINFO_IBI
 
         Duration_Detected=true;
     }
@@ -2159,7 +2281,7 @@ void File_MpegTs::Header_Parse_AdaptationField()
                                             Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Min_Raw=TimeStamp_InstantaneousBitRate_Current_Raw;
                                         if (Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Max_Raw<TimeStamp_InstantaneousBitRate_Current_Raw)
                                             Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Max_Raw=TimeStamp_InstantaneousBitRate_Current_Raw;
-                                        float64 Distance=(float64)(program_clock_reference-Complete_Stream->Streams[pid]->TimeStamp_End);
+                                        int64u Distance=program_clock_reference-Complete_Stream->Streams[pid]->TimeStamp_End;
                                         if (Complete_Stream->Streams[pid]->TimeStamp_Distance_Min>Distance)
                                             Complete_Stream->Streams[pid]->TimeStamp_Distance_Min=Distance;
                                         if (Complete_Stream->Streams[pid]->TimeStamp_Distance_Max<Distance)
@@ -2173,7 +2295,7 @@ void File_MpegTs::Header_Parse_AdaptationField()
                                     {
                                        if (!discontinuity_indicator)
                                             Complete_Stream->Streams[pid]->TimeStamp_HasProblems++;
-                                       float64 Bytes=(float64)(File_Offset+Buffer_Offset-Complete_Stream->Streams[pid]->TimeStamp_End_Offset);;
+                                       float64 Bytes=(float64)(File_Offset+Buffer_Offset-Complete_Stream->Streams[pid]->TimeStamp_End_Offset);
                                        int64u TimeToAdd;
                                        if (Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Current_Raw)
                                            TimeToAdd=float64_int64s(Bytes*8/Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Current_Raw*27000000);
@@ -2226,7 +2348,8 @@ void File_MpegTs::Header_Parse_AdaptationField()
                             {
                                 //We are already parsing 16 seconds (for all PCRs), we don't hope to have more info
                                 MpegTs_JumpTo_Begin=File_Offset+Buffer_Offset-Buffer_TotalBytes_FirstSynched;
-                                MpegTs_JumpTo_End=MpegTs_JumpTo_Begin;
+                                if (MpegTs_JumpTo_End>MpegTs_JumpTo_Begin)
+                                    MpegTs_JumpTo_End=MpegTs_JumpTo_Begin;
                             }
                         }
                     }
@@ -2384,7 +2507,7 @@ void File_MpegTs::Header_Parse_AdaptationField()
                                             Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Min_Raw=InstantaneousBitRate_Raw;
                                         if (Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Max_Raw<InstantaneousBitRate_Raw)
                                             Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Max_Raw=InstantaneousBitRate_Raw;
-                                        float64 Distance=(float64)(program_clock_reference-Complete_Stream->Streams[pid]->TimeStamp_End);
+                                        int64u Distance=program_clock_reference-Complete_Stream->Streams[pid]->TimeStamp_End;
                                         if (Complete_Stream->Streams[pid]->TimeStamp_Distance_Min>Distance)
                                             Complete_Stream->Streams[pid]->TimeStamp_Distance_Min=Distance;
                                         if (Complete_Stream->Streams[pid]->TimeStamp_Distance_Max<Distance)
@@ -2398,7 +2521,7 @@ void File_MpegTs::Header_Parse_AdaptationField()
                                     {
                                        if (!discontinuity_indicator)
                                             Complete_Stream->Streams[pid]->TimeStamp_HasProblems++;
-                                       float64 Bytes=(float64)(File_Offset+Buffer_Offset-Complete_Stream->Streams[pid]->TimeStamp_End_Offset);;
+                                       float64 Bytes=(float64)(File_Offset+Buffer_Offset-Complete_Stream->Streams[pid]->TimeStamp_End_Offset);
                                        int64u TimeToAdd;
                                        if (Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Current_Raw)
                                            TimeToAdd=float64_int64s(Bytes*8/Complete_Stream->Streams[pid]->TimeStamp_InstantaneousBitRate_Current_Raw*27000000);
@@ -2451,7 +2574,8 @@ void File_MpegTs::Header_Parse_AdaptationField()
                             {
                                 //We are already parsing 16 seconds (for all PCRs), we don't hope to have more info
                                 MpegTs_JumpTo_Begin=File_Offset+Buffer_Offset-Buffer_TotalBytes_FirstSynched;
-                                MpegTs_JumpTo_End=MpegTs_JumpTo_Begin;
+                                if (MpegTs_JumpTo_End>MpegTs_JumpTo_Begin)
+                                    MpegTs_JumpTo_End=MpegTs_JumpTo_Begin;
                             }
                         }
                     }
@@ -2567,6 +2691,11 @@ void File_MpegTs::PES()
             #ifdef MEDIAINFO_MPEGTS_PESTIMESTAMP_YES
                 Complete_Stream->Streams[pid]->Searching_ParserTimeStamp_Start_Set(false);
             #endif //MEDIAINFO_MPEGTS_PESTIMESTAMP_YES
+            if (!Complete_Stream->Streams[pid]->IsParsed && Complete_Stream->Streams_NotParsedCount)
+            {
+                Complete_Stream->Streams[pid]->IsParsed=true;
+                Complete_Stream->Streams_NotParsedCount--;
+            }
         }
         Skip_XX(Element_Size-Element_Offset,                    "Scrambled data");
 
@@ -2599,8 +2728,11 @@ void File_MpegTs::PES()
                 Complete_Stream->Streams[pid]->Searching_ParserTimeStamp_Start_Set(false);
                 Complete_Stream->Streams[pid]->Searching_ParserTimeStamp_End_Set(false);
             #endif //MEDIAINFO_MPEGTS_PESTIMESTAMP_YES
+            if (!Complete_Stream->Streams[pid]->IsParsed && Complete_Stream->Streams_NotParsedCount)
+            {
                 Complete_Stream->Streams[pid]->IsParsed=true;
                 Complete_Stream->Streams_NotParsedCount--;
+            }
             return;
         }
 
@@ -2632,6 +2764,10 @@ void File_MpegTs::PES()
                     }
                 }
             #endif //MEDIAINFO_DEMUX
+            #if defined(MEDIAINFO_ARIBSTDB24B37_YES)
+                if (FromAribStdB24B37)
+                    ((File_MpegPs*)Complete_Stream->Streams[pid]->Parser)->FromAribStdB24B37=true;
+            #endif //defined(MEDIAINFO_ARIBSTDB24B37_YES)
             #ifdef MEDIAINFO_MPEGTS_PESTIMESTAMP_YES
                 if (Searching_TimeStamp_Start)
                     Complete_Stream->Streams[pid]->Searching_ParserTimeStamp_Start_Set(true);
@@ -2692,6 +2828,10 @@ void File_MpegTs::PES()
             Complete_Stream->Streams[pid]->Parser->Ibi_SynchronizationOffset_Current=File_Offset+Buffer_Offset-Header_Size;
     #endif //MEDIAINFO_IBI
 
+    #if defined(MEDIAINFO_ARIBSTDB24B37_YES)
+        if (FromAribStdB24B37)
+            Complete_Stream->Streams[pid]->Parser->FrameInfo=FrameInfo;
+    #endif //defined(MEDIAINFO_ARIBSTDB24B37_YES)
     Open_Buffer_Continue(Complete_Stream->Streams[pid]->Parser);
     PES_Parse_Finish();
 }
@@ -2726,9 +2866,12 @@ void File_MpegTs::PES_Parse_Finish()
     {
         if ((Complete_Stream->Streams[pid]->Searching_Payload_Start || Complete_Stream->Streams[pid]->Searching_Payload_Continue) && Config->ParseSpeed<1 && MpegTs_JumpTo_End)
         {
-            Complete_Stream->Streams[pid]->Searching_Payload_Start_Set(false);
-            Complete_Stream->Streams[pid]->Searching_Payload_Continue_Set(false);
-            if (Complete_Stream->Streams_NotParsedCount)
+            if (Config->File_StopSubStreamAfterFilled_Get())
+            {
+                Complete_Stream->Streams[pid]->Searching_Payload_Start_Set(false);
+                Complete_Stream->Streams[pid]->Searching_Payload_Continue_Set(false);
+            }
+            if (!Complete_Stream->Streams[pid]->IsParsed && Complete_Stream->Streams_NotParsedCount)
             {
                 Complete_Stream->Streams[pid]->IsParsed=true;
                 Complete_Stream->Streams_NotParsedCount--;
@@ -2743,7 +2886,7 @@ void File_MpegTs::PES_Parse_Finish()
         #endif //MEDIAINFO_MPEGTS_PESTIMESTAMP_YES
     }
 
-    #if MEDIAINFO_SEEK
+    #if MEDIAINFO_SEEK && MEDIAINFO_IBI
         if (Seek_ID!=(int64u)-1)
         {
             if (Ibi.Streams[Seek_ID]->IsModified)
@@ -2769,7 +2912,7 @@ void File_MpegTs::PES_Parse_Finish()
                 }
             }
         }
-    #endif //MEDIAINFO_SEEK
+    #endif //MEDIAINFO_SEEK && MEDIAINFO_IBI
 }
 
 //---------------------------------------------------------------------------
@@ -2886,6 +3029,40 @@ void File_MpegTs::PSI()
     else
         //Waiting for more data
         Complete_Stream->Streams[pid]->Searching_Payload_Continue_Set(true);
+}
+
+//---------------------------------------------------------------------------
+void File_MpegTs::SetAllToPES()
+{
+    Complete_Stream->Streams_NotParsedCount=(size_t)-1;
+    for (size_t StreamID=0; StreamID<0x2000; StreamID++)
+    {
+        delete Complete_Stream->Streams[StreamID]; Complete_Stream->Streams[StreamID]=new complete_stream::stream;
+    }
+    #ifdef MEDIAINFO_ARIBSTDB24B37_YES
+        size_t StreamID=FromAribStdB24B37?0x00:0x20;
+    #else //MEDIAINFO_ARIBSTDB24B37_YES
+        size_t StreamID=0x20;
+    #endif //MEDIAINFO_ARIBSTDB24B37_YES
+    for (; StreamID<0x1FFF; StreamID++)
+    {
+        Complete_Stream->Streams[StreamID]->Kind=complete_stream::stream::pes;
+        Complete_Stream->Streams[StreamID]->Searching_Payload_Start_Set(true);
+        Complete_Stream->Streams[StreamID]->Searching_Payload_Continue_Set(false);
+        #if MEDIAINFO_TRACE
+            if (Trace_Activated)
+                Complete_Stream->Streams[StreamID]->Element_Info1="PES";
+        #endif //MEDIAINFO_TRACE
+        #ifdef MEDIAINFO_MPEGTS_PCR_YES
+            Complete_Stream->Streams[StreamID]->Searching_TimeStamp_Start_Set(true);
+            Complete_Stream->Streams[StreamID]->Searching_TimeStamp_End_Set(false);
+        #endif //MEDIAINFO_MPEGTS_PCR_YES
+        #ifdef MEDIAINFO_MPEGTS_PESTIMESTAMP_YES
+            Complete_Stream->Streams[StreamID]->Searching_ParserTimeStamp_Start_Set(true);
+            Complete_Stream->Streams[StreamID]->Searching_ParserTimeStamp_End_Set(false);
+        #endif //MEDIAINFO_MPEGTS_PESTIMESTAMP_YES
+    }
+    Complete_Stream->NoPatPmt=true;
 }
 
 } //NameSpace

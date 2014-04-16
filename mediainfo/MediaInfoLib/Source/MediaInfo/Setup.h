@@ -1,20 +1,9 @@
-// Config - Config file for MediaInfo
-// Copyright (C) 2006-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 // All compilation definitions
@@ -202,6 +191,16 @@
         #define MEDIAINFO_ADVANCED 1
     #endif
 #endif
+#if !defined(MEDIAINFO_MD5)
+    #if defined(MEDIAINFO_MD5_NO) && defined(MEDIAINFO_MD5_YES)
+        #undef MEDIAINFO_MD5_NO //MEDIAINFO_MD5_YES has priority
+    #endif
+    #if defined(MEDIAINFO_MD5_NO)
+        #define MEDIAINFO_MD5 0
+    #else
+        #define MEDIAINFO_MD5 1
+    #endif
+#endif
 #if !defined(MEDIAINFO_DEMUX)
     #if !defined(MEDIAINFO_DEMUX_NO) && !defined(MEDIAINFO_DEMUX_YES) && !MEDIAINFO_EVENTS
         #define MEDIAINFO_DEMUX_NO //MEDIAINFO_DEMUX is disabled by default if MEDIAINFO_EVENTS is set to 0
@@ -279,6 +278,9 @@
 #if !defined(MEDIAINFO_MULTI_NO) && !defined(MEDIAINFO_REFERENCES_NO) && !defined(MEDIAINFO_REFERENCES_YES)
     #define MEDIAINFO_REFERENCES_YES
 #endif
+#if !defined(MEDIAINFO_MULTI_NO) && !defined(MEDIAINFO_AAF_NO) && !defined(MEDIAINFO_AAF_YES)
+    #define MEDIAINFO_AAF_YES
+#endif
 #if !defined(MEDIAINFO_MULTI_NO) && !defined(MEDIAINFO_ANCILLARY_NO) && !defined(MEDIAINFO_ANCILLARY_YES)
     #define MEDIAINFO_ANCILLARY_YES
 #endif
@@ -290,6 +292,9 @@
 #endif
 #if !defined(MEDIAINFO_MULTI_NO) && !defined(MEDIAINFO_CDXA_NO) && !defined(MEDIAINFO_CDXA_YES)
     #define MEDIAINFO_CDXA_YES
+#endif
+#if !defined(MEDIAINFO_MULTI_NO) && !defined(MEDIAINFO_DASHMPD_NO) && !defined(MEDIAINFO_DASHMPD_YES)
+    #define MEDIAINFO_DASHMPD_YES
 #endif
 #if !defined(MEDIAINFO_MULTI_NO) && !defined(MEDIAINFO_DCP_NO) && !defined(MEDIAINFO_DCP_YES)
     #define MEDIAINFO_DCP_YES
@@ -311,6 +316,9 @@
 #endif
 #if !defined(MEDIAINFO_MULTI_NO) && !defined(MEDIAINFO_GXF_NO) && !defined(MEDIAINFO_GXF_YES)
     #define MEDIAINFO_GXF_YES
+#endif
+#if !defined(MEDIAINFO_MULTI_NO) && !defined(MEDIAINFO_HDSF4M_NO) && !defined(MEDIAINFO_HDSF4M_YES)
+    #define MEDIAINFO_HDSF4M_YES
 #endif
 #if !defined(MEDIAINFO_MULTI_NO) && !defined(MEDIAINFO_HLS_NO) && !defined(MEDIAINFO_HLS_YES)
     #define MEDIAINFO_HLS_YES
@@ -360,6 +368,12 @@
 #if !defined(MEDIAINFO_MULTI_NO) && !defined(MEDIAINFO_P2_NO) && !defined(MEDIAINFO_P2_YES)
     #define MEDIAINFO_P2_YES
 #endif
+#if !defined(MEDIAINFO_MULTI_NO) && !defined(MEDIAINFO_PMP_NO) && !defined(MEDIAINFO_PMP_YES)
+    #define MEDIAINFO_PMP_YES
+#endif
+#if !defined(MEDIAINFO_MULTI_NO) && !defined(MEDIAINFO_PTX_NO) && !defined(MEDIAINFO_PTX_YES)
+    #define MEDIAINFO_PTX_YES
+#endif
 #if !defined(MEDIAINFO_MULTI_NO) && !defined(MEDIAINFO_RIFF_NO) && !defined(MEDIAINFO_RIFF_YES)
     #define MEDIAINFO_RIFF_YES
 #endif
@@ -393,6 +407,9 @@
 
 //---------------------------------------------------------------------------
 // Video
+#if !defined(MEDIAINFO_VIDEO_NO) && !defined(MEDIAINFO_AIC_NO) && !defined(MEDIAINFO_AIC_YES)
+    #define MEDIAINFO_AIC_YES
+#endif
 #if !defined(MEDIAINFO_VIDEO_NO) && !defined(MEDIAINFO_AFDBARDATA_NO) && !defined(MEDIAINFO_AFDBARDATA_YES)
     #define MEDIAINFO_AFDBARDATA_YES
 #endif
@@ -401,6 +418,9 @@
 #endif
 #if !defined(MEDIAINFO_VIDEO_NO) && !defined(MEDIAINFO_AVSV_NO) && !defined(MEDIAINFO_AVSV_YES)
     #define MEDIAINFO_AVSV_YES
+#endif
+#if !defined(MEDIAINFO_VIDEO_NO) && !defined(MEDIAINFO_CANOPUS_NO) && !defined(MEDIAINFO_CANOPUS_YES)
+    #define MEDIAINFO_CANOPUS_YES
 #endif
 #if !defined(MEDIAINFO_VIDEO_NO) && !defined(MEDIAINFO_DIRAC_NO) && !defined(MEDIAINFO_DIRAC_YES)
     #define MEDIAINFO_DIRAC_YES
@@ -413,6 +433,9 @@
 #endif
 #if !defined(MEDIAINFO_VIDEO_NO) && !defined(MEDIAINFO_H263_NO) && !defined(MEDIAINFO_H263_YES)
     #define MEDIAINFO_H263_YES
+#endif
+#if !defined(MEDIAINFO_VIDEO_NO) && !defined(MEDIAINFO_HEVC_NO) && !defined(MEDIAINFO_HEVC_YES)
+    #define MEDIAINFO_HEVC_YES
 #endif
 #if !defined(MEDIAINFO_VIDEO_NO) && !defined(MEDIAINFO_LAGARITH_NO) && !defined(MEDIAINFO_LAGARITH_YES)
     #define MEDIAINFO_LAGARITH_YES
@@ -431,6 +454,9 @@
 #endif
 #if !defined(MEDIAINFO_VIDEO_NO) && !defined(MEDIAINFO_VC3_NO) && !defined(MEDIAINFO_VC3_YES)
     #define MEDIAINFO_VC3_YES
+#endif
+#if !defined(MEDIAINFO_VIDEO_NO) && !defined(MEDIAINFO_TIMECODE_NO) && !defined(MEDIAINFO_TIMECODE_YES)
+    #define MEDIAINFO_TIMECODE_YES
 #endif
 #if !defined(MEDIAINFO_VIDEO_NO) && !defined(MEDIAINFO_THEORA_NO) && !defined(MEDIAINFO_THEORA_YES)
     #define MEDIAINFO_THEORA_YES
@@ -458,9 +484,6 @@
 #endif
 #if !defined(MEDIAINFO_AUDIO_NO) && !defined(MEDIAINFO_LATM_NO) && !defined(MEDIAINFO_LATM_YES)
     #define MEDIAINFO_LATM_YES
-#endif
-#if !defined(MEDIAINFO_AUDIO_NO) && !defined(MEDIAINFO_AES3_NO) && !defined(MEDIAINFO_AES3_YES)
-    #define MEDIAINFO_AES3_YES
 #endif
 #if !defined(MEDIAINFO_AUDIO_NO) && !defined(MEDIAINFO_AMR_NO) && !defined(MEDIAINFO_AMR_YES)
     #define MEDIAINFO_AMR_YES
@@ -561,6 +584,9 @@
 
 //---------------------------------------------------------------------------
 // Text
+#if !defined(MEDIAINFO_TEXT_NO) && !defined(MEDIAINFO_ARIBSTDB24B37_NO) && !defined(MEDIAINFO_ARIBSTDB24B37_YES)
+    #define MEDIAINFO_ARIBSTDB24B37_YES
+#endif
 #if !defined(MEDIAINFO_TEXT_NO) && !defined(MEDIAINFO_CDP_NO) && !defined(MEDIAINFO_CDP_YES)
     #define MEDIAINFO_CDP_YES
 #endif
@@ -594,8 +620,17 @@
 #if !defined(MEDIAINFO_TEXT_NO) && !defined(MEDIAINFO_SCTE20_NO) && !defined(MEDIAINFO_SCTE20_YES)
     #define MEDIAINFO_SCTE20_YES
 #endif
+#if !defined(MEDIAINFO_TEXT_NO) && !defined(MEDIAINFO_SUBRIP_NO) && !defined(MEDIAINFO_SUBRIP_YES)
+    #define MEDIAINFO_SUBRIP_YES
+#endif
 #if !defined(MEDIAINFO_TEXT_NO) && !defined(MEDIAINFO_TELETEXT_NO) && !defined(MEDIAINFO_TELETEXT_YES)
     #define MEDIAINFO_TELETEXT_YES
+#endif
+#if !defined(MEDIAINFO_TEXT_NO) && !defined(MEDIAINFO_TIMEDTEXT_NO) && !defined(MEDIAINFO_TIMEDTEXT_YES)
+    #define MEDIAINFO_TIMEDTEXT_YES
+#endif
+#if !defined(MEDIAINFO_TEXT_NO) && !defined(MEDIAINFO_TTML_NO) && !defined(MEDIAINFO_TTML_YES)
+    #define MEDIAINFO_TTML_YES
 #endif
 #if !defined(MEDIAINFO_TEXT_NO) && !defined(MEDIAINFO_OTHERTEXT_NO) && !defined(MEDIAINFO_OTHERTEXT_YES)
     #define MEDIAINFO_OTHERTEXT_YES

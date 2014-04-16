@@ -1,20 +1,9 @@
-// File_Lxf - Info for LXF files
-// Copyright (C) 2006-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 // Information about Lxf files
@@ -28,6 +17,9 @@
 
 //---------------------------------------------------------------------------
 #include "MediaInfo/File__Analyze.h"
+#if defined(MEDIAINFO_ANCILLARY_YES)
+    #include <MediaInfo/Multiple/File_Ancillary.h>
+#endif //defined(MEDIAINFO_ANCILLARY_YES)
 #include <vector>
 //---------------------------------------------------------------------------
 
@@ -43,11 +35,12 @@ class File_Lxf : public File__Analyze
 public :
     //Constructor/Destructor
     File_Lxf();
+    ~File_Lxf();
 
 protected :
     //Streams management
     void Streams_Fill ();
-    void Streams_Fill_PerStream (File__Analyze* Parser, size_t Container_StreamKind, size_t Parser_Pos);
+    void Streams_Fill_PerStream (File__Analyze* Parser, stream_t Container_StreamKind, size_t Parser_Pos, int8u Format=(int8u)-1);
     void Streams_Finish ();
 
     //Buffer - Synchro
@@ -55,6 +48,7 @@ protected :
     bool Synched_Test();
 
     //Buffer - Global
+    void Read_Buffer_Continue();
     #if MEDIAINFO_SEEK
     size_t Read_Buffer_Seek (size_t Method, int64u Value, int64u ID);
     #endif //MEDIAINFO_SEEK
@@ -75,24 +69,25 @@ protected :
     void Video_Stream(size_t Pos);
     void Video_Stream_1();
     void Video_Stream_2();
-    void Video_Stream_2_Mpegv();
-    void Video_Stream_2_DvDif();
-    void Video_Stream_2_Avc();
 
     //Streams
     struct stream
     {
-        File__Analyze*  Parser;
-        int64u          BytesPerFrame;
+        std::vector<File__Analyze*> Parsers;
+        int64u                      BytesPerFrame;
+        int8u                       Format;
+        bool                        IsFilled;
 
         stream()
         {
-            Parser=NULL;
             BytesPerFrame=(int64u)-1;
+            Format=(int8u)-1;
+            IsFilled=false;
         }
     };
-    std::vector<stream> Videos;
-    std::vector<stream> Audios;
+    typedef std::vector<stream> streams;
+    streams Videos;
+    streams Audios;
     struct stream_header
     {
         int64u          TimeStamp_Begin;
@@ -119,6 +114,9 @@ protected :
     };
     stream_header Videos_Header;
     stream_header Audios_Header;
+    #if defined(MEDIAINFO_ANCILLARY_YES)
+        File_Ancillary* Ancillary;
+    #endif //defined(MEDIAINFO_ANCILLARY_YES)
 
     //Temp
     bool                    LookingForLastFrame;
@@ -130,11 +128,15 @@ protected :
     std::vector<int64u>     Video_Sizes;
     size_t                  Video_Sizes_Pos;
     int8u                   SampleSize;
-    int8u                   VideoFormat;
     int32u                  Version;
 
     //Hints
     size_t*                 File_Buffer_Size_Hint_Pointer;
+
+    //Demux
+    #if MEDIAINFO_DEMUX
+        File__Analyze* DemuxParser;
+    #endif //MEDIAINFO_DEMUX
 
     //Seek
     typedef std::map<int64u, stream_header> time_offsets;

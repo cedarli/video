@@ -1,25 +1,8 @@
-// Preferences - Manage preferences of MediaInfo
-// Copyright (C) 2002-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this program. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//
-// Manage preferences of MediaInfo
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 #define NO_WIN32_LEAN_AND_MEAN
@@ -354,7 +337,7 @@ void __fastcall ThreadInternetCheck::Execute()
         return; //No internet connexion
 
     HTTP_Client H;
-    if (H.Open(Ztring(__T("http://mediaarea.net/mediainfo_check/changelog_"))+MediaInfo_Version_GUI+__T(".bin"))==0)
+    if (H.Open(Ztring(__T("http://MediaArea.net/mediainfo_check/changelog_"))+MediaInfo_Version_GUI+__T(".bin"))==0)
         return;
 
     Ztring Z=H.Read();
@@ -377,7 +360,7 @@ void __fastcall ThreadInternetCheck::Execute()
         Message.FindAndReplace(__T("%Version%"), NewestVersion);
         switch(Application->MessageBox(Message.c_str(), Prefs->Translate(__T("NewVersion_Question_Title")).c_str(), MB_YESNO))
         {
-            case IDYES : ShellExecute(NULL, NULL, (Ztring(__T("http://mediainfo.sourceforge.net/"))+Prefs->Translate(__T("  Language_ISO639"))+__T("?NewVersionRequested=true")).c_str(), NULL, NULL, SW_SHOWNORMAL);
+            case IDYES : ShellExecute(NULL, NULL, (Ztring(__T("http://mediaarea.net/"))+Prefs->Translate(__T("  Language_ISO639"))+__T("/MediaInfo?NewVersionRequested=true")).c_str(), NULL, NULL, SW_SHOWNORMAL);
             default    : ;
         }
         //Inscription version connue pour pas repeter l'avertissement
@@ -429,14 +412,15 @@ int Preferences::ExplorerShell()
     Reg->RootKey = HKEY_CLASSES_ROOT;
     TRegistry* Reg_User=new TRegistry;
 
-    ZtringListList Liste;
-    Liste=__T(
+    ZtringListList List;
+    List=__T(
         ".264;H264File\r\n"
         ".3g2;mpeg4File\r\n"
         ".3gp;mpeg4File\r\n"
         ".3gpp;mpeg4File\r\n"
         ".aac;AACFile\r\n"
         ".ac3;AC3File\r\n"
+        ".aiff;AIFFFile\r\n"
         ".amr;AMRFile\r\n"
         ".ape;APEFile\r\n"
         ".asf;ASFFile\r\n"
@@ -491,6 +475,7 @@ int Preferences::ExplorerShell()
         ".mp3;mp3File\r\n"
         ".mp4;mpeg4File\r\n"
         ".mpc;mpcFile\r\n"
+        ".mpd;mpdFile\r\n"
         ".mpe;mpegFile\r\n"
         ".mpeg;mpegFile\r\n"
         ".mpg;mpegFile\r\n"
@@ -577,10 +562,10 @@ int Preferences::ExplorerShell()
      || (MajorVersion==5 && MinorVersion>=1)) //WinXP or more in 5.x family
     {
         //Removing old stuff
-        for (size_t I1=0; I1<Liste.size(); I1++)
+        for (size_t I1=0; I1<List.size(); I1++)
         {
             //Remove shell ext except "Folder"
-            if (Reg->OpenKey(Liste(I1, 0).c_str(), false))
+            if (Reg->OpenKey(List(I1, 0).c_str(), false))
             {
                 //test if extension is known
                 AnsiString Player=Reg->ReadString(__T(""));
@@ -608,7 +593,7 @@ int Preferences::ExplorerShell()
             }
 
             //Remove shell ext except "Folder" (user part)
-            if (Reg_User->OpenKey((Ztring(__T("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\"))+Liste(I1, 0)+__T("\\UserChoice")).c_str(), false))
+            if (Reg_User->OpenKey((Ztring(__T("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\"))+List(I1, 0)+__T("\\UserChoice")).c_str(), false))
             {
                 //test if extension is known
                 AnsiString Player=Reg_User->ReadString("Progid");
@@ -632,37 +617,37 @@ int Preferences::ExplorerShell()
 
         //Adding/removing to SystemFileAssociations
         int32s ShellExtension=Config.Read(__T("ShellExtension")).To_int32s();
-        for (size_t I1=0; I1<Liste.size(); I1++)
+        for (size_t I1=0; I1<List.size(); I1++)
         {
             //Remove shell ext except "Folder"
-            if (Liste(I1, 0)!=__T("Folder"))
-                ExplorerShell_Edit((__T("Software\\Classes\\SystemFileAssociations\\")+Liste(I1, 0)).c_str(), ShellExtension, IsChanged, Reg_User);
+            if (List(I1, 0)!=__T("Folder"))
+                ExplorerShell_Edit((__T("Software\\Classes\\SystemFileAssociations\\")+List(I1, 0)).c_str(), ShellExtension, IsChanged, Reg_User);
         }
         ExplorerShell_Edit("Software\\Classes\\Directory", Config.Read(__T("ShellExtension_Folder")).To_int32s(), IsChanged, Reg_User);
     }
     else
     {
         int32s ShellExtension=Config.Read(__T("ShellExtension")).To_int32s();
-        for (size_t I1=0; I1<Liste.size(); I1++)
+        for (size_t I1=0; I1<List.size(); I1++)
         {
-            if (Liste(I1, 0)==__T("Folder"))
+            if (List(I1, 0)==__T("Folder"))
                 ShellExtension=Config.Read(__T("ShellExtension_Folder")).To_int32s();
 
             //Open (or create) a extension. Create only if Sheel extension is wanted
-            if (Reg->OpenKey(Liste(I1, 0).c_str(), ShellExtension))
+            if (Reg->OpenKey(List(I1, 0).c_str(), ShellExtension))
             {
                 //test if extension is known
                 AnsiString Player=Reg->ReadString(__T(""));
                 if (Player=="")
                 {
                     //extension not known, will use our default
-                    Player=Liste(I1, 1).c_str();
+                    Player=List(I1, 1).c_str();
                     try {Reg->WriteString(__T(""), Player);} catch (...){}
                     IsChanged=true;
                 }
                 Reg->CloseKey();
 
-                if (Liste(I1, 0)==__T("Folder"))
+                if (List(I1, 0)==__T("Folder"))
                     Player="Folder";
 
                 //Test if old Media Info shell extension is known
@@ -719,8 +704,8 @@ int Preferences::ExplorerShell()
             }
 
             //Open (or create) a extension (user). Create only if Shell extension is wanted
-            Ztring A=Liste(I1, 0);
-            if (Reg_User->OpenKey((Ztring(__T("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\"))+Liste(I1, 0)+__T("\\UserChoice")).c_str(), false))
+            Ztring A=List(I1, 0);
+            if (Reg_User->OpenKey((Ztring(__T("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\"))+List(I1, 0)+__T("\\UserChoice")).c_str(), false))
             {
                 //test if extension is known
                 AnsiString Player=Reg_User->ReadString("Progid");
@@ -1013,14 +998,15 @@ int Preferences::ShellToolTip()
 
     int32s ShellInfoTip=Config.Read(__T("ShellInfoTip")).To_int32s();
 
-    ZtringListList Liste;
-    Liste=__T(
+    ZtringListList List;
+    List=__T(
         ".264;H264File\r\n"
         ".3g2;mpeg4File\r\n"
         ".3gp;mpeg4File\r\n"
         ".3gpp;mpeg4File\r\n"
         ".aac;AACFile\r\n"
         ".ac3;AC3File\r\n"
+        ".aiff;AIFFFile\r\n"
         ".amr;AMRFile\r\n"
         ".ape;APEFile\r\n"
         ".asf;ASFFile\r\n"
@@ -1075,6 +1061,7 @@ int Preferences::ShellToolTip()
         ".mp3;mp3File\r\n"
         ".mp4;mpeg4File\r\n"
         ".mpc;mpcFile\r\n"
+        ".mpd;mpdFile\r\n"
         ".mpe;mpegFile\r\n"
         ".mpeg;mpegFile\r\n"
         ".mpg;mpegFile\r\n"
@@ -1178,13 +1165,13 @@ int Preferences::ShellToolTip()
                 Result=_RegDeleteKeyEx(HKEY_CURRENT_USER, __T("Software\\Classes\\MediaInfoShellExt.MediaInfoShellExt_"), KEY_WOW64_64KEY, 0);
                 Result=_RegDeleteKeyEx(HKEY_CURRENT_USER, __T("Software\\Classes\\MediaInfoShellExt.MediaInfoShellExt_.1\\CLSID"), KEY_WOW64_64KEY, 0);
                 Result=_RegDeleteKeyEx(HKEY_CURRENT_USER, __T("Software\\Classes\\MediaInfoShellExt.MediaInfoShellExt_.1"), KEY_WOW64_64KEY, 0);
-                for (size_t I1=0; I1<Liste.size(); I1++)
+                for (size_t I1=0; I1<List.size(); I1++)
                 {
                     //Remove
-                    if (!Liste(I1, 0).empty())
+                    if (!List(I1, 0).empty())
                     {
-                        Result=_RegDeleteKeyEx(HKEY_CURRENT_USER, (__T("Software\\Classes\\")+Liste(I1, 0)+__T("\\shellex\\{00021500-0000-0000-C000-000000000046}")).c_str(), KEY_WOW64_64KEY, 0);
-                        //Result=_RegDeleteKeyEx(HKEY_CURRENT_USER, (__T("Software\\Classes\\")+Liste(I1, 0)+__T("\\shellex")).c_str(), KEY_WOW64_64KEY, 0);
+                        Result=_RegDeleteKeyEx(HKEY_CURRENT_USER, (__T("Software\\Classes\\")+List(I1, 0)+__T("\\shellex\\{00021500-0000-0000-C000-000000000046}")).c_str(), KEY_WOW64_64KEY, 0);
+                        //Result=_RegDeleteKeyEx(HKEY_CURRENT_USER, (__T("Software\\Classes\\")+List(I1, 0)+__T("\\shellex")).c_str(), KEY_WOW64_64KEY, 0);
                     }
                 }
             }
@@ -1202,13 +1189,13 @@ int Preferences::ShellToolTip()
                 Result=RegDeleteKey(HKEY_CURRENT_USER, __T("Software\\Classes\\MediaInfoShellExt.MediaInfoShellExt_"));
                 Result=RegDeleteKey(HKEY_CURRENT_USER, __T("Software\\Classes\\MediaInfoShellExt.MediaInfoShellExt_.1\\CLSID"));
                 Result=RegDeleteKey(HKEY_CURRENT_USER, __T("Software\\Classes\\MediaInfoShellExt.MediaInfoShellExt_.1"));
-                for (size_t I1=0; I1<Liste.size(); I1++)
+                for (size_t I1=0; I1<List.size(); I1++)
                 {
                     //Remove
-                    if (!Liste(I1, 0).empty())
+                    if (!List(I1, 0).empty())
                     {
-                        Result=RegDeleteKey(HKEY_CURRENT_USER, (__T("Software\\Classes\\")+Liste(I1, 0)+__T("\\shellex\\{00021500-0000-0000-C000-000000000046}")).c_str());
-                        //Result=RegDeleteKey(HKEY_CURRENT_USER, (__T("Software\\Classes\\")+Liste(I1, 0)+__T("\\shellex")).c_str());
+                        Result=RegDeleteKey(HKEY_CURRENT_USER, (__T("Software\\Classes\\")+List(I1, 0)+__T("\\shellex\\{00021500-0000-0000-C000-000000000046}")).c_str());
+                        //Result=RegDeleteKey(HKEY_CURRENT_USER, (__T("Software\\Classes\\")+List(I1, 0)+__T("\\shellex")).c_str());
                     }
                 }
             }
@@ -1239,11 +1226,11 @@ int Preferences::ShellToolTip()
             AddKey(__T("Software\\Classes\\MediaInfoShellExt.MediaInfoShellExt_\\CurVer"), __T(""), __T("MediaInfoShellExt.MediaInfoShellExt_.1"));
             AddKey(__T("Software\\Classes\\MediaInfoShellExt.MediaInfoShellExt_.1"), __T(""), __T("MediaInfoShellExt_ Class"));
             AddKey(__T("Software\\Classes\\MediaInfoShellExt.MediaInfoShellExt_.1\\CLSID"), __T(""), __T("{869C14C8-1830-491F-B575-5F9AB40D2B42}"));
-            for (size_t I1=0; I1<Liste.size(); I1++)
+            for (size_t I1=0; I1<List.size(); I1++)
             {
                 //Add
-                if (!Liste(I1, 0).empty())
-                    AddKey(__T("Software\\Classes\\")+Liste(I1, 0)+__T("\\shellex\\{00021500-0000-0000-C000-000000000046}"), __T(""), __T("{869C14C8-1830-491F-B575-5F9AB40D2B42}"));
+                if (!List(I1, 0).empty())
+                    AddKey(__T("Software\\Classes\\")+List(I1, 0)+__T("\\shellex\\{00021500-0000-0000-C000-000000000046}"), __T(""), __T("{869C14C8-1830-491F-B575-5F9AB40D2B42}"));
             }
             IsChanged=true;
         }

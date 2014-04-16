@@ -1,24 +1,8 @@
-// ZenLib::File - File functions
-// Copyright (C) 2002-2010 MediaArea.net SARL, Info@MediaArea.net
-//
-// This software is provided 'as-is', without any express or implied
-// warranty.  In no event will the authors be held liable for any damages
-// arising from the use of this software.
-//
-// Permission is granted to anyone to use this software for any purpose,
-// including commercial applications, and to alter it and redistribute it
-// freely, subject to the following restrictions:
-//
-// 1. The origin of this software must not be misrepresented; you must not
-//    claim that you wrote the original software. If you use this software
-//    in a product, an acknowledgment in the product documentation would be
-//    appreciated but is not required.
-// 2. Altered source versions must be plainly marked as such, and must not be
-//    misrepresented as being the original software.
-// 3. This notice may not be removed or altered from any source distribution.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a zlib-style license that can
+ *  be found in the License.txt file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 #include "ZenLib/PreComp.h"
@@ -154,7 +138,7 @@ bool File::Open (const tstring &File_Name_, access_t Access)
             switch (Access)
             {
                 case Access_Read         : mode=ios_base::binary|ios_base::in; break;
-                case Access_Write        : mode=ios_base::binary|ios_base::out; break;
+                case Access_Write        : mode=ios_base::binary|ios_base::in|ios_base::out; break;
                 case Access_Read_Write   : mode=ios_base::binary|ios_base::in|ios_base::out; break;
                 case Access_Write_Append : if (!Exists(File_Name))
                                                 mode=ios_base::binary|ios_base::out;
@@ -609,23 +593,30 @@ int64u File::Size_Get()
             File_Size=lseek(File_Handle, 0, SEEK_END);
             lseek(File_Handle, CurrentPos, SEEK_SET);
             */
-            streampos CurrentPos=((fstream*)File_Handle)->tellg();
-            if (CurrentPos!=(streampos)-1)
+            fstream::pos_type CurrentPos=((fstream*)File_Handle)->tellg();
+            if (CurrentPos!=(fstream::pos_type)-1)
             {
                 ((fstream*)File_Handle)->seekg(0, ios_base::end);
                 Size=((fstream*)File_Handle)->tellg();
-                ((fstream*)File_Handle)->seekg(CurrentPos, ios_base::beg);
+                ((fstream*)File_Handle)->seekg(CurrentPos);
             }
             else
                 Size=(int64u)-1;
-            return Size;
         #elif defined WINDOWS
-            DWORD High;DWORD Low=GetFileSize(File_Handle, &High);
-            if (Low==INVALID_FILE_SIZE && GetLastError()!=NO_ERROR)
-                return (int64u)-1;
-            Size=0x100000000ULL*High+Low;
-            return Size;
+            #ifdef ZENLIB_NO_WIN9X_SUPPORT
+                LARGE_INTEGER x = {0};
+                BOOL bRet = ::GetFileSizeEx(File_Handle, &x);
+                if (bRet == FALSE)
+                    return (int64u)-1;
+                Size=x.QuadPart;
+            #else
+                DWORD High;DWORD Low=GetFileSize(File_Handle, &High);
+                if (Low==INVALID_FILE_SIZE && GetLastError()!=NO_ERROR)
+                    return (int64u)-1;
+                Size=0x100000000ULL*High+Low;
+            #endif //ZENLIB_NO_WIN9X_SUPPORT
         #endif
+        return Size;
     #endif //ZENLIB_USEWX
 }
 
@@ -836,14 +827,13 @@ Ztring File::Modified_Get(const Ztring &File_Name)
 //---------------------------------------------------------------------------
 bool File::Exists(const Ztring &File_Name)
 {
-    if (File_Name.find(__T('*'))!=std::string::npos || File_Name.find(__T('?'))!=std::string::npos)
-        return false;
-
     #ifdef ZENLIB_USEWX
         wxFileName FN(File_Name.c_str());
         return FN.FileExists();
     #else //ZENLIB_USEWX
         #ifdef ZENLIB_STANDARD
+            if (File_Name.find(__T('*'))!=std::string::npos || File_Name.find(__T('?'))!=std::string::npos)
+                return false;
             struct stat buffer;
             int         status;
             #ifdef UNICODE
@@ -853,6 +843,8 @@ bool File::Exists(const Ztring &File_Name)
             #endif //UNICODE
             return status==0 && S_ISREG(buffer.st_mode);
         #elif defined WINDOWS
+            if (File_Name.find(__T('*'))!=std::string::npos || (File_Name.find(__T("\\\\?\\"))!=0 && File_Name.find(__T('?'))!=std::string::npos) || (File_Name.find(__T("\\\\?\\"))==0 && File_Name.find(__T('?'), 4)!=std::string::npos))
+                return false;
             #ifdef UNICODE
                 DWORD FileAttributes;
                 #ifndef ZENLIB_NO_WIN9X_SUPPORT

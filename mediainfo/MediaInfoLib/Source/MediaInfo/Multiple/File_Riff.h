@@ -1,20 +1,9 @@
-// File_Riff - Info for RIFF files
-// Copyright (C) 2002-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 // Information about RIFF files
@@ -63,6 +52,9 @@ private :
     #if MEDIAINFO_SEEK
     size_t Read_Buffer_Seek (size_t Method, int64u Value, int64u ID);
     #endif //MEDIAINFO_SEEK
+    #if MEDIAINFO_DEMUX
+    void Read_Buffer_Continue ();
+    #endif //MEDIAINFO_DEMUX
     void Read_Buffer_Unsynched();
 
     //Buffer - Per element
@@ -93,6 +85,7 @@ private :
         bool                    SearchingPayload;
         bool                    Specific_IsMpeg4v;
         bool                    ChunksAreComplete;
+        bool                    IsPcm;
 
         stream()
         {
@@ -113,6 +106,7 @@ private :
             SearchingPayload=true;
             Specific_IsMpeg4v=false;
             ChunksAreComplete=true;
+            IsPcm=false;
         }
 
         ~stream()
@@ -149,6 +143,7 @@ private :
     int64u Buffer_DataToParse_End;
     int32u AvgBytesPerSec;
     int16u BlockAlign;
+    float64 PAR;
     float64 Demux_Rate;
     float64 avih_FrameRate; //FrameRate of the first video stream in one MOVI chunk
     int32u avih_TotalFrame; //Count of frames in one MOVI chunk
@@ -180,6 +175,9 @@ private :
         Kind_Rmp3,
     };
     kind Kind;
+    #if defined(MEDIAINFO_GXF_YES)
+        int32u rcrd_fld__anc__pos__LineNumber;
+    #endif //defined(MEDIAINFO_GXF_YES)
 
     void TimeCode_Fill(const Ztring &Name, const Ztring &Value);
 
@@ -321,6 +319,11 @@ private :
     void wave_data () {WAVE_data();}
     void wave_fmt_ () {WAVE_fmt_();}
     void W3DI();
+
+    //Temp
+    #if MEDIAINFO_DEMUX
+    File__Analyze*  Demux_Parser;
+    #endif //MEDIAINFO_DEMUX
 };
 
 } //NameSpace

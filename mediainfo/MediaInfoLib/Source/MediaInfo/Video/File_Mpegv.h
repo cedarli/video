@@ -1,20 +1,9 @@
-// File_Mpegv - Info for MPEG Video files
-// Copyright (C) 2004-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 // Information about MPEG Video files
@@ -113,6 +102,10 @@ private :
     void extension_start();
     void sequence_end();
     void group_start();
+
+
+    //Helpers
+    void temporal_reference_Adapt();
 
     //Streams
     struct stream
@@ -225,11 +218,11 @@ private :
         File__Analyze*              DTG1_Parser;
         File__Analyze*              GA94_06_Parser;
     #endif //defined(MEDIAINFO_AFDBARDATA_YES)
-    #if defined(MEDIAINFO_GXF_YES) && defined(MEDIAINFO_CDP_YES)
+    #if defined(MEDIAINFO_CDP_YES)
         File__Analyze*              Cdp_Parser;
         bool                        Cdp_IsPresent;
     #endif //defined(MEDIAINFO_GXF_YES) && defined(MEDIAINFO_CDP_YES)
-    #if defined(MEDIAINFO_GXF_YES) && defined(MEDIAINFO_AFDBARDATA_YES)
+    #if defined(MEDIAINFO_AFDBARDATA_YES)
         File__Analyze*              AfdBarData_Parser;
     #endif //defined(MEDIAINFO_GXF_YES) && defined(MEDIAINFO_AFDBARDATA_YES)
 
@@ -239,6 +232,7 @@ private :
     Ztring Library_Version;
     Ztring Matrix_intra;
     Ztring Matrix_nonintra;
+    string TimeCode_FirstFrame;
     size_t BVOP_Count;
     size_t progressive_frame_Count;
     size_t Interlaced_Top;
@@ -256,6 +250,7 @@ private :
     int16u bit_rate_extension;
     int16u temporal_reference;
     int16u temporal_reference_Old;
+    int16u temporal_reference_Max;
     int16u display_horizontal_size;
     int16u display_vertical_size;
     int16u vbv_delay;
@@ -298,10 +293,13 @@ private :
     bool   Parsing_End_ForDTS;
     bool   bit_rate_value_IsValid;
     bool   profile_and_level_indication_escape;
+    bool   colour_description;
+    bool   low_delay;
     int8u  RefFramesCount;
     int8u  BVOPsSinceLastRefFrames;
     int16u temporal_reference_LastIFrame;
     int64u PTS_LastIFrame;
+    int16u PTS_End_temporal_reference;
     int64u tc;
     bool    IFrame_IsParsed;
     size_t  IFrame_Count;

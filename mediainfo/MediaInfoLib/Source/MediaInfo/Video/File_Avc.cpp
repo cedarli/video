@@ -1,21 +1,8 @@
-// File_Avc - Info for AVC Video files
-// Copyright (C) 2006-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -108,8 +95,8 @@ namespace MediaInfoLib
 const size_t Avc_Errors_MaxCount=32;
 
 //---------------------------------------------------------------------------
-const int8u Avc_PixelAspectRatio_Size=17;
-const float32 Avc_PixelAspectRatio[]=
+extern const int8u Avc_PixelAspectRatio_Size=17;
+extern const float32 Avc_PixelAspectRatio[]=
 {
     (float32)1, //Reserved
     (float32)1,
@@ -131,7 +118,7 @@ const float32 Avc_PixelAspectRatio[]=
 };
 
 //---------------------------------------------------------------------------
-const char* Avc_video_format[]=
+extern const char* Avc_video_format[]=
 {
     "Component",
     "PAL",
@@ -264,22 +251,6 @@ const char* Mpegv_transfer_characteristics(int8u transfer_characteristics);
 const char* Mpegv_matrix_coefficients(int8u matrix_coefficients);
 
 //---------------------------------------------------------------------------
-const char* Avc_matrix_coefficients(int8u matrix_coefficients)
-{
-    switch (matrix_coefficients)
-    {
-        case  0 : return "RGB";
-        case  1 : return "BT.709-5, BT.1361, IEC 61966-2-4 709, SMPTE RP177";
-        case  4 : return "FTC 73.682";
-        case  5 : return "BT.470-6 System B, BT.470-6 System G, BT.601-6 625, BT.1358 625, BT.1700 625 PAL, BT.1700 625 SECAM, IEC 61966-2-4 601";
-        case  6 : return "BT.601-6 525, BT.1358 525, BT.1700 NTSC, SMPTE 170M";
-        case  7 : return "SMPTE 240M";
-        case  8 : return "YCgCo";
-        default : return "";
-    }
-}
-
-//---------------------------------------------------------------------------
 const char* Avc_user_data_GA94_cc_type(int8u cc_type)
 {
     switch (cc_type)
@@ -345,6 +316,9 @@ File_Avc::File_Avc()
     FrameIsAlwaysComplete=false;
     MustParse_SPS_PPS=false;
     SizedBlocks=false;
+
+    //Temporal references
+    TemporalReferences_DelayedElement=NULL;
 
     //Text
     #if defined(MEDIAINFO_DTVCCTRANSPORT_YES)
@@ -428,9 +402,10 @@ void File_Avc::Streams_Fill(std::vector<seq_parameter_set_struct*>::iterator seq
             Fill(Stream_Video, 0, Video_Standard, Avc_video_format[(*seq_parameter_set_Item)->vui_parameters->video_format]);
             if ((*seq_parameter_set_Item)->vui_parameters->colour_description_present_flag)
             {
-                Fill(Stream_Video, 0, "colour_primaries", Mpegv_colour_primaries((*seq_parameter_set_Item)->vui_parameters->colour_primaries));
-                Fill(Stream_Video, 0, "transfer_characteristics", Mpegv_transfer_characteristics((*seq_parameter_set_Item)->vui_parameters->transfer_characteristics));
-                Fill(Stream_Video, 0, "matrix_coefficients", Mpegv_matrix_coefficients((*seq_parameter_set_Item)->vui_parameters->matrix_coefficients));
+                Fill(Stream_Video, 0, Video_colour_description_present, "Yes");
+                Fill(Stream_Video, 0, Video_colour_primaries, Mpegv_colour_primaries((*seq_parameter_set_Item)->vui_parameters->colour_primaries));
+                Fill(Stream_Video, 0, Video_transfer_characteristics, Mpegv_transfer_characteristics((*seq_parameter_set_Item)->vui_parameters->transfer_characteristics));
+                Fill(Stream_Video, 0, Video_matrix_coefficients, Mpegv_matrix_coefficients((*seq_parameter_set_Item)->vui_parameters->matrix_coefficients));
             }
         }
 
@@ -582,7 +557,7 @@ void File_Avc::Streams_Fill(std::vector<seq_parameter_set_struct*>::iterator seq
 }
 
 //---------------------------------------------------------------------------
-void File_Avc::Streams_Fill_subset(std::vector<seq_parameter_set_struct*>::iterator seq_parameter_set_Item)
+void File_Avc::Streams_Fill_subset(const std::vector<seq_parameter_set_struct*>::iterator seq_parameter_set_Item)
 {
     Ztring Profile=Ztring().From_Local(Avc_profile_idc((*seq_parameter_set_Item)->profile_idc))+__T("@L")+Ztring().From_Number(((float)(*seq_parameter_set_Item)->level_idc)/10, 1);
     Ztring Profile_Base=Retrieve(Stream_Video, 0, Video_Format_Profile);
@@ -606,6 +581,10 @@ void File_Avc::Streams_Finish()
         {
             Finish(GA94_03_Parser);
             Merge(*GA94_03_Parser);
+
+            Ztring LawRating=GA94_03_Parser->Retrieve(Stream_General, 0, General_LawRating);
+            if (!LawRating.empty())
+                Fill(Stream_General, 0, General_LawRating, LawRating, true);
 
             for (size_t Pos=0; Pos<Count_Get(Stream_Text); Pos++)
             {
@@ -727,36 +706,185 @@ bool File_Avc::Synched_Test()
 #if MEDIAINFO_DEMUX
 bool File_Avc::Demux_UnpacketizeContainer_Test()
 {
-    bool zero_byte=Buffer[Buffer_Offset+2]==0x00;
-    if (!(((Buffer[Buffer_Offset+(zero_byte?4:3)]&0x1B)==0x01 && (Buffer[Buffer_Offset+(zero_byte?5:4)]&0x80)!=0x80)
-       || (Buffer[Buffer_Offset+(zero_byte?4:3)]&0x1F)==0x0C))
+    const int8u*    Buffer_Temp=NULL;
+    size_t          Buffer_Temp_Size=0;
+    bool            RandomAccess=true; //Default, in case of problem
+
+    if ((MustParse_SPS_PPS || SizedBlocks) && Demux_Avc_Transcode_Iso14496_15_to_Iso14496_10)
     {
-        if (Demux_Offset==0)
+        if (MustParse_SPS_PPS)
+            return true; //Wait for SPS and PPS
+
+        //Random access check
+        RandomAccess=false;
+
+        //Computing final size
+        size_t TranscodedBuffer_Size=0;
+        while (Buffer_Offset+SizeOfNALU_Minus1+1+1<=Buffer_Size)
         {
-            Demux_Offset=Buffer_Offset;
-            Demux_IntermediateItemFound=false;
-        }
-        while (Demux_Offset+6<=Buffer_Size)
-        {
-            //Synchronizing
-            while(Demux_Offset+6<=Buffer_Size && (Buffer[Demux_Offset  ]!=0x00
-                                               || Buffer[Demux_Offset+1]!=0x00
-                                               || Buffer[Demux_Offset+2]!=0x01))
+            size_t Size;
+            switch (SizeOfNALU_Minus1)
             {
-                Demux_Offset+=2;
-                while(Demux_Offset<Buffer_Size && Buffer[Buffer_Offset]!=0x00)
-                    Demux_Offset+=2;
-                if (Demux_Offset>=Buffer_Size || Buffer[Demux_Offset-1]==0x00)
-                    Demux_Offset--;
+                case 0: Size=Buffer[Buffer_Offset];
+                        TranscodedBuffer_Size+=2;
+                        break;
+                case 1: Size=BigEndian2int16u(Buffer+Buffer_Offset);
+                        TranscodedBuffer_Size++;
+                        break;
+                case 2: Size=BigEndian2int24u(Buffer+Buffer_Offset);
+                        break;
+                case 3: Size=BigEndian2int32u(Buffer+Buffer_Offset);
+                        TranscodedBuffer_Size--;
+                        break;
+                default:    return true; //Problem
+            }
+            Size+=SizeOfNALU_Minus1+1;
+
+            //Coherency checking
+            if (Size==0 || Buffer_Offset+Size>Buffer_Size || (Buffer_Offset+Size!=Buffer_Size && Buffer_Offset+Size+SizeOfNALU_Minus1+1>Buffer_Size))
+                Size=Buffer_Size-Buffer_Offset;
+
+            //Random access check
+            if (!RandomAccess && Buffer_Offset+SizeOfNALU_Minus1+1<Buffer_Size && (Buffer[Buffer_Offset+SizeOfNALU_Minus1+1]&0x1F) && (Buffer[Buffer_Offset+SizeOfNALU_Minus1+1]&0x1F)<=5) //Is a slice
+            {
+                int32u slice_type;
+                Element_Offset=SizeOfNALU_Minus1+1+1;
+                Element_Size=Size;
+                BS_Begin();
+                Skip_UE("first_mb_in_slice");
+                Get_UE (slice_type, "slice_type");
+                BS_End();
+                Element_Offset=0;
+
+                switch (slice_type)
+                {
+                    case 2 :
+                    case 7 :
+                                RandomAccess=true;
+                }
             }
 
-            if (Demux_Offset+6<=Buffer_Size)
+            TranscodedBuffer_Size+=Size;
+            Buffer_Offset+=Size;
+        }
+        Buffer_Offset=0;
+
+        //Adding SPS/PPS sizes
+        if (RandomAccess)
+        {
+            for (seq_parameter_set_structs::iterator Data_Item=seq_parameter_sets.begin(); Data_Item!=seq_parameter_sets.end(); ++Data_Item)
+                TranscodedBuffer_Size+=(*Data_Item)->Iso14496_10_Buffer_Size;
+            for (seq_parameter_set_structs::iterator Data_Item=subset_seq_parameter_sets.begin(); Data_Item!=subset_seq_parameter_sets.end(); ++Data_Item)
+                TranscodedBuffer_Size+=(*Data_Item)->Iso14496_10_Buffer_Size;
+            for (pic_parameter_set_structs::iterator Data_Item=pic_parameter_sets.begin(); Data_Item!=pic_parameter_sets.end(); ++Data_Item)
+                TranscodedBuffer_Size+=(*Data_Item)->Iso14496_10_Buffer_Size;
+        }
+
+        //Copying
+        int8u* TranscodedBuffer=new int8u[TranscodedBuffer_Size+100];
+        size_t TranscodedBuffer_Pos=0;
+        if (RandomAccess)
+        {
+            for (seq_parameter_set_structs::iterator Data_Item=seq_parameter_sets.begin(); Data_Item!=seq_parameter_sets.end(); ++Data_Item)
             {
+                std::memcpy(TranscodedBuffer+TranscodedBuffer_Pos, (*Data_Item)->Iso14496_10_Buffer, (*Data_Item)->Iso14496_10_Buffer_Size);
+                TranscodedBuffer_Pos+=(*Data_Item)->Iso14496_10_Buffer_Size;
+            }
+            for (seq_parameter_set_structs::iterator Data_Item=subset_seq_parameter_sets.begin(); Data_Item!=subset_seq_parameter_sets.end(); ++Data_Item)
+            {
+                std::memcpy(TranscodedBuffer+TranscodedBuffer_Pos, (*Data_Item)->Iso14496_10_Buffer, (*Data_Item)->Iso14496_10_Buffer_Size);
+                TranscodedBuffer_Pos+=(*Data_Item)->Iso14496_10_Buffer_Size;
+            }
+            for (pic_parameter_set_structs::iterator Data_Item=pic_parameter_sets.begin(); Data_Item!=pic_parameter_sets.end(); ++Data_Item)
+            {
+                std::memcpy(TranscodedBuffer+TranscodedBuffer_Pos, (*Data_Item)->Iso14496_10_Buffer, (*Data_Item)->Iso14496_10_Buffer_Size);
+                TranscodedBuffer_Pos+=(*Data_Item)->Iso14496_10_Buffer_Size;
+            }
+        }
+        while (Buffer_Offset<Buffer_Size)
+        {
+            //Sync layer
+            TranscodedBuffer[TranscodedBuffer_Pos]=0x00;
+            TranscodedBuffer_Pos++;
+            TranscodedBuffer[TranscodedBuffer_Pos]=0x00;
+            TranscodedBuffer_Pos++;
+            TranscodedBuffer[TranscodedBuffer_Pos]=0x01;
+            TranscodedBuffer_Pos++;
+
+            //Block
+            size_t Size;
+            switch (SizeOfNALU_Minus1)
+            {
+                case 0: Size=Buffer[Buffer_Offset];
+                        Buffer_Offset++;
+                        break;
+                case 1: Size=BigEndian2int16u(Buffer+Buffer_Offset);
+                        Buffer_Offset+=2;
+                        break;
+                case 2: Size=BigEndian2int24u(Buffer+Buffer_Offset);
+                        Buffer_Offset+=3;
+                        break;
+                case 3: Size=BigEndian2int32u(Buffer+Buffer_Offset);
+                        Buffer_Offset+=4;
+                        break;
+                default: //Problem
+                        delete [] TranscodedBuffer;
+                        return false;
+            }
+
+            //Coherency checking
+            if (Size==0 || Buffer_Offset+Size>Buffer_Size || (Buffer_Offset+Size!=Buffer_Size && Buffer_Offset+Size+SizeOfNALU_Minus1+1>Buffer_Size))
+                Size=Buffer_Size-Buffer_Offset;
+
+            std::memcpy(TranscodedBuffer+TranscodedBuffer_Pos, Buffer+Buffer_Offset, Size);
+            TranscodedBuffer_Pos+=Size;
+            Buffer_Offset+=Size;
+        }
+        Buffer_Offset=0;
+
+        Buffer_Temp=Buffer;
+        Buffer=TranscodedBuffer;
+        Buffer_Temp_Size=Buffer_Size;
+        Buffer_Size=TranscodedBuffer_Size;
+        Demux_Offset=Buffer_Size;
+    }
+    else
+    {
+        bool zero_byte=Buffer[Buffer_Offset+2]==0x00;
+        if (!(((Buffer[Buffer_Offset+(zero_byte?4:3)]&0x1B)==0x01 && (Buffer[Buffer_Offset+(zero_byte?5:4)]&0x80)!=0x80)
+           || (Buffer[Buffer_Offset+(zero_byte?4:3)]&0x1F)==0x0C))
+        {
+            if (Demux_Offset==0)
+            {
+                Demux_Offset=Buffer_Offset;
+                Demux_IntermediateItemFound=false;
+            }
+            while (Demux_Offset+6<=Buffer_Size)
+            {
+                //Synchronizing
+                while(Demux_Offset+6<=Buffer_Size && (Buffer[Demux_Offset  ]!=0x00
+                                                   || Buffer[Demux_Offset+1]!=0x00
+                                                   || Buffer[Demux_Offset+2]!=0x01))
+                {
+                    Demux_Offset+=2;
+                    while(Demux_Offset<Buffer_Size && Buffer[Buffer_Offset]!=0x00)
+                        Demux_Offset+=2;
+                    if (Demux_Offset>=Buffer_Size || Buffer[Demux_Offset-1]==0x00)
+                        Demux_Offset--;
+                }
+
+                if (Demux_Offset+6>Buffer_Size)
+                {
+                    if (File_Offset+Buffer_Size==File_Size)
+                        Demux_Offset=Buffer_Size;
+                    break;
+                }
+
                 zero_byte=Buffer[Demux_Offset+2]==0x00;
                 if (Demux_IntermediateItemFound)
                 {
                     if (!(((Buffer[Demux_Offset+(zero_byte?4:3)]&0x1B)==0x01 && (Buffer[Demux_Offset+(zero_byte?5:4)]&0x80)!=0x80)
-                       || (Buffer[Demux_Offset+(zero_byte?4:3)]&0x1F)==0x0C))
+                        || (Buffer[Demux_Offset+(zero_byte?4:3)]&0x1F)==0x0C))
                         break;
                 }
                 else
@@ -767,54 +895,64 @@ bool File_Avc::Demux_UnpacketizeContainer_Test()
 
                 Demux_Offset++;
             }
-        }
 
-        if (Demux_Offset+6>Buffer_Size && !FrameIsAlwaysComplete && File_Offset+Buffer_Size<File_Size)
-            return false; //No complete frame
+            if (Demux_Offset+6>Buffer_Size && !FrameIsAlwaysComplete && File_Offset+Buffer_Size<File_Size)
+                return false; //No complete frame
 
-        if (Demux_Offset && Buffer[Demux_Offset-1]==0x00)
-            Demux_Offset--;
+            if (Demux_Offset && Buffer[Demux_Offset-1]==0x00)
+                Demux_Offset--;
 
-        zero_byte=Buffer[Buffer_Offset+2]==0x00;
-        size_t Buffer_Offset_Random=Buffer_Offset;
-        if ((Buffer[Buffer_Offset_Random+(zero_byte?4:3)]&0x1F)==0x09)
-        {
-            Buffer_Offset_Random++;
-            if (zero_byte)
-                Buffer_Offset_Random++;
-            while(Buffer_Offset_Random+6<=Buffer_Size && (Buffer[Buffer_Offset_Random  ]!=0x00
-                                                       || Buffer[Buffer_Offset_Random+1]!=0x00
-                                                       || Buffer[Buffer_Offset_Random+2]!=0x01))
-                Buffer_Offset_Random++;
-            zero_byte=Buffer[Buffer_Offset_Random+2]==0x00;
-        }
-        bool RandomAccess=Buffer_Offset_Random+6<=Buffer_Size && (Buffer[Buffer_Offset_Random+(zero_byte?4:3)]&0x1F)==0x07; //seq_parameter_set
-        if (!Status[IsAccepted])
-        {
-            Accept("AVC");
-            if (Config->Demux_EventWasSent)
-                return false;
-        }
-
-        if (IFrame_Count || RandomAccess)
-        {
-            bool Frame_Count_NotParsedIncluded_PlusOne=false;
-            int64u PTS_Temp=FrameInfo.PTS;
-            if (!IsSub)
-                FrameInfo.PTS=(int64u)-1;
-            if (Frame_Count_NotParsedIncluded!=(int64u)-1 && Interlaced_Top!=Interlaced_Bottom)
+            zero_byte=Buffer[Buffer_Offset+2]==0x00;
+            size_t Buffer_Offset_Random=Buffer_Offset;
+            if ((Buffer[Buffer_Offset_Random+(zero_byte?4:3)]&0x1F)==0x09)
             {
-                Frame_Count_NotParsedIncluded--;
-                Frame_Count_NotParsedIncluded_PlusOne=true;
+                Buffer_Offset_Random++;
+                if (zero_byte)
+                    Buffer_Offset_Random++;
+                while(Buffer_Offset_Random+6<=Buffer_Size && (Buffer[Buffer_Offset_Random  ]!=0x00
+                                                           || Buffer[Buffer_Offset_Random+1]!=0x00
+                                                           || Buffer[Buffer_Offset_Random+2]!=0x01))
+                    Buffer_Offset_Random++;
+                zero_byte=Buffer[Buffer_Offset_Random+2]==0x00;
             }
-            Demux_UnpacketizeContainer_Demux(RandomAccess);
-            if (!IsSub)
-                FrameInfo.PTS=PTS_Temp;
-            if (Frame_Count_NotParsedIncluded_PlusOne)
-                Frame_Count_NotParsedIncluded++;
+            RandomAccess=Buffer_Offset_Random+6<=Buffer_Size && (Buffer[Buffer_Offset_Random+(zero_byte?4:3)]&0x1F)==0x07; //seq_parameter_set
         }
-        else
-            Demux_UnpacketizeContainer_Demux_Clear();
+    }
+
+    if (!Status[IsAccepted])
+    {
+        Accept("AVC");
+        if (Config->Demux_EventWasSent)
+            return false;
+    }
+
+    if (IFrame_Count || RandomAccess)
+    {
+        bool Frame_Count_NotParsedIncluded_PlusOne=false;
+        int64u PTS_Temp=FrameInfo.PTS;
+        if (!IsSub)
+            FrameInfo.PTS=(int64u)-1;
+        if (Frame_Count_NotParsedIncluded!=(int64u)-1 && Interlaced_Top!=Interlaced_Bottom)
+        {
+            Frame_Count_NotParsedIncluded--;
+            Frame_Count_NotParsedIncluded_PlusOne=true;
+        }
+        Demux_UnpacketizeContainer_Demux(RandomAccess);
+        if (!IsSub)
+            FrameInfo.PTS=PTS_Temp;
+        if (Frame_Count_NotParsedIncluded_PlusOne)
+            Frame_Count_NotParsedIncluded++;
+    }
+    else
+        Demux_UnpacketizeContainer_Demux_Clear();
+
+    if (Buffer_Temp)
+    {
+        Demux_TotalBytes-=Buffer_Size;
+        Demux_TotalBytes+=Buffer_Temp_Size;
+        delete[] Buffer;
+        Buffer=Buffer_Temp;
+        Buffer_Size=Buffer_Temp_Size;
     }
 
     return true;
@@ -889,6 +1027,9 @@ void File_Avc::Synched_Init()
             Streams[0x05].Searching_Payload=true; //slice_header
         }
     #endif //MEDIAINFO_EVENTS
+    #if MEDIAINFO_DEMUX
+        Demux_Avc_Transcode_Iso14496_15_to_Iso14496_10=Config->Demux_Avc_Transcode_Iso14496_15_to_Iso14496_10_Get();
+    #endif //MEDIAINFO_DEMUX
 }
 
 //***************************************************************************
@@ -917,15 +1058,36 @@ void File_Avc::Read_Buffer_Unsynched()
     #endif //defined(MEDIAINFO_DTVCCTRANSPORT_YES)
 
     //parameter_sets
-    for (std::vector<seq_parameter_set_struct*>::iterator seq_parameter_set_Item=seq_parameter_sets.begin(); seq_parameter_set_Item!=seq_parameter_sets.end(); ++seq_parameter_set_Item)
-        if ((*seq_parameter_set_Item))
-            (*seq_parameter_set_Item)->IsSynched=false;
-    for (std::vector<seq_parameter_set_struct*>::iterator subset_seq_parameter_set_Item=subset_seq_parameter_sets.begin(); subset_seq_parameter_set_Item!=subset_seq_parameter_sets.end(); ++subset_seq_parameter_set_Item)
-        if ((*subset_seq_parameter_set_Item))
-            (*subset_seq_parameter_set_Item)->IsSynched=false;
-    for (std::vector<pic_parameter_set_struct*>::iterator pic_parameter_set_Item=pic_parameter_sets.begin(); pic_parameter_set_Item!=pic_parameter_sets.end(); ++pic_parameter_set_Item)
-        if ((*pic_parameter_set_Item))
-            (*pic_parameter_set_Item)->IsSynched=false;
+    if (SizedBlocks) //If sized blocks, it is not a broadcasted stream so SPS/PPS are only in container header, we must not disable them.
+    {
+        //Rebuilding immediatly TemporalReferences
+        for (std::vector<seq_parameter_set_struct*>::iterator seq_parameter_set_Item=seq_parameter_sets.begin(); seq_parameter_set_Item!=seq_parameter_sets.end(); ++seq_parameter_set_Item)
+            if ((*seq_parameter_set_Item))
+            {
+                size_t MaxNumber;
+                switch ((*seq_parameter_set_Item)->pic_order_cnt_type)
+                {
+                    case 0 : MaxNumber=(*seq_parameter_set_Item)->MaxPicOrderCntLsb; break;
+                    case 2 : MaxNumber=(*seq_parameter_set_Item)->MaxFrameNum*2; break;
+                    default: Trusted_IsNot("Not supported"); return;
+                }
+
+                TemporalReferences.resize(4*MaxNumber);
+                TemporalReferences_Reserved=MaxNumber;
+            }
+    }
+    else
+    {
+        for (std::vector<seq_parameter_set_struct*>::iterator seq_parameter_set_Item=seq_parameter_sets.begin(); seq_parameter_set_Item!=seq_parameter_sets.end(); ++seq_parameter_set_Item)
+            if ((*seq_parameter_set_Item))
+                (*seq_parameter_set_Item)->IsSynched=false;
+        for (std::vector<seq_parameter_set_struct*>::iterator subset_seq_parameter_set_Item=subset_seq_parameter_sets.begin(); subset_seq_parameter_set_Item!=subset_seq_parameter_sets.end(); ++subset_seq_parameter_set_Item)
+            if ((*subset_seq_parameter_set_Item))
+                (*subset_seq_parameter_set_Item)->IsSynched=false;
+        for (std::vector<pic_parameter_set_struct*>::iterator pic_parameter_set_Item=pic_parameter_sets.begin(); pic_parameter_set_Item!=pic_parameter_sets.end(); ++pic_parameter_set_Item)
+            if ((*pic_parameter_set_Item))
+                (*pic_parameter_set_Item)->IsSynched=false;
+    }
 
     //Status
     Interlaced_Top=0;
@@ -1013,9 +1175,9 @@ void File_Avc::Header_Parse()
         Get_S1 ( 5, nal_unit_type,                              "nal_unit_type");
         BS_End();
 
-        FILLING_BEGIN()
-            Header_Fill_Size(Element_Offset+Size-1);
-        FILLING_END()
+        FILLING_BEGIN();
+            Header_Fill_Size(Size?(Element_Offset-1+Size):(Buffer_Size-Buffer_Offset)); //If Size is 0, it is not normal, we skip the complete frame
+        FILLING_END();
     }
 
     //Filling
@@ -1077,7 +1239,7 @@ bool File_Avc::Header_Parser_QuickSearch()
         else
             start_code=CC1(Buffer+Buffer_Offset+3)&0x1F;
 
-        //Searching start33
+        //Searching start
         if (Streams[start_code].Searching_Payload
          || Streams[start_code].ShouldDuplicate)
             return true;
@@ -1217,6 +1379,58 @@ void File_Avc::Data_Parse()
             File__Duplicate_Write(Element_Code);
     #endif //MEDIAINFO_DUPLICATE
 
+    #if MEDIAINFO_DEMUX
+        if (Demux_Avc_Transcode_Iso14496_15_to_Iso14496_10)
+        {
+            if (Element_Code==0x07)
+            {
+                std::vector<seq_parameter_set_struct*>::iterator Data_Item=seq_parameter_sets.begin();
+                if (Data_Item!=seq_parameter_sets.end() && (*Data_Item))
+                {
+                    delete[] (*Data_Item)->Iso14496_10_Buffer;
+                    (*Data_Item)->Iso14496_10_Buffer_Size=(size_t)(Element_Size+4);
+                    (*Data_Item)->Iso14496_10_Buffer=new int8u[(*Data_Item)->Iso14496_10_Buffer_Size];
+                    (*Data_Item)->Iso14496_10_Buffer[0]=0x00;
+                    (*Data_Item)->Iso14496_10_Buffer[1]=0x00;
+                    (*Data_Item)->Iso14496_10_Buffer[2]=0x01;
+                    (*Data_Item)->Iso14496_10_Buffer[3]=0x67;
+                    std::memcpy((*Data_Item)->Iso14496_10_Buffer+4, Buffer+Buffer_Offset, (size_t)Element_Size);
+                }
+            }
+            if (Element_Code==0x08)
+            {
+                std::vector<pic_parameter_set_struct*>::iterator Data_Item=pic_parameter_sets.begin();
+                if (Data_Item!=pic_parameter_sets.end() && (*Data_Item))
+                {
+                    delete[] (*Data_Item)->Iso14496_10_Buffer;
+                    (*Data_Item)->Iso14496_10_Buffer_Size=(size_t)(Element_Size+4);
+                    (*Data_Item)->Iso14496_10_Buffer=new int8u[(*Data_Item)->Iso14496_10_Buffer_Size];
+                    (*Data_Item)->Iso14496_10_Buffer[0]=0x00;
+                    (*Data_Item)->Iso14496_10_Buffer[1]=0x00;
+                    (*Data_Item)->Iso14496_10_Buffer[2]=0x01;
+                    (*Data_Item)->Iso14496_10_Buffer[3]=0x68;
+                    std::memcpy((*Data_Item)->Iso14496_10_Buffer+4, Buffer+Buffer_Offset, (size_t)Element_Size);
+                }
+            }
+            if (Element_Code==0x0F)
+            {
+                std::vector<seq_parameter_set_struct*>::iterator Data_Item=subset_seq_parameter_sets.begin();
+                if (Data_Item!=subset_seq_parameter_sets.end() && (*Data_Item))
+                {
+                    SizeOfNALU_Minus1=0;
+                    delete[] (*Data_Item)->Iso14496_10_Buffer;
+                    (*Data_Item)->Iso14496_10_Buffer_Size=(size_t)(Element_Size+4);
+                    (*Data_Item)->Iso14496_10_Buffer=new int8u[(*Data_Item)->Iso14496_10_Buffer_Size];
+                    (*Data_Item)->Iso14496_10_Buffer[0]=0x00;
+                    (*Data_Item)->Iso14496_10_Buffer[1]=0x00;
+                    (*Data_Item)->Iso14496_10_Buffer[2]=0x01;
+                    (*Data_Item)->Iso14496_10_Buffer[3]=0x6F;
+                    std::memcpy((*Data_Item)->Iso14496_10_Buffer+4, Buffer+Buffer_Offset, (size_t)Element_Size);
+                }
+            }
+        }
+    #endif //MEDIAINFO_DEMUX
+
     //Trailing zeroes
     Element_Size=Element_Size_SaveBeforeZeroes;
 }
@@ -1232,7 +1446,10 @@ void File_Avc::slice_layer_without_partitioning_non_IDR()
     Element_Name("slice_layer_without_partitioning (non-IDR)");
 
     //Parsing
+    BS_Begin();
     slice_header();
+    slice_data(true);
+    BS_End();
 }
 
 //---------------------------------------------------------------------------
@@ -1242,7 +1459,10 @@ void File_Avc::slice_layer_without_partitioning_IDR()
     Element_Name("slice_layer_without_partitioning (IDR)");
 
     //Parsing
+    BS_Begin();
     slice_header();
+    slice_data(true);
+    BS_End();
 
     FILLING_BEGIN_PRECISE();
         //NextCode
@@ -1259,16 +1479,18 @@ void File_Avc::slice_header()
     if (CA_system_ID_MustSkipSlices)
     {
         //Is not decodable
+        Skip_BS(Data_BS_Remain(),                               "Data");
         Finish("AVC");
         return;
     }
 
+    Element_Begin1("slice_header");
+
     //Parsing
     int32u  slice_type, pic_order_cnt_lsb=(int32u)-1;
-    int32u  first_mb_in_slice, pic_parameter_set_id, frame_num, num_ref_idx_l0_active_minus1, num_ref_idx_l1_active_minus1;
+    int32u  first_mb_in_slice, pic_parameter_set_id, frame_num, num_ref_idx_l0_active_minus1, num_ref_idx_l1_active_minus1, disable_deblocking_filter_idc, num_slice_groups_minus1, slice_group_map_type, slice_group_change_cycle=(int32u)-1;
     int32s  delta_pic_order_cnt_bottom=0;
     bool    field_pic_flag=false, bottom_field_flag=false;
-    BS_Begin();
     Get_UE (first_mb_in_slice,                                  "first_mb_in_slice");
     Get_UE (slice_type,                                         "slice_type"); Param_Info1C((slice_type<10), Avc_slice_type[slice_type]);
     #if MEDIAINFO_EVENTS
@@ -1300,8 +1522,8 @@ void File_Avc::slice_header()
     #endif //MEDIAINFO_EVENTS
     if (slice_type>=10)
     {
-        BS_End();
-        Skip_XX(Element_Size-Element_Offset,                    "Data");
+        Skip_BS(Data_BS_Remain(),                               "Data");
+        Element_End0();
         return;
     }
     Get_UE (pic_parameter_set_id,                               "pic_parameter_set_id");
@@ -1310,6 +1532,7 @@ void File_Avc::slice_header()
     {
         //Not yet present
         Skip_BS(Data_BS_Remain(),                               "Data (pic_parameter_set is missing)");
+        Element_End0();
         return;
     }
     std::vector<seq_parameter_set_struct*>::iterator seq_parameter_set_Item;
@@ -1319,9 +1542,12 @@ void File_Avc::slice_header()
         {
             //Not yet present
             Skip_BS(Data_BS_Remain(),                           "Data (seq_parameter_set is missing)");
+            Element_End0();
             return;
         }
     }
+    if ((*seq_parameter_set_Item)->separate_colour_plane_flag==1)
+        Skip_S1(2,                                              "color_plane_id");
     num_ref_idx_l0_active_minus1=(*pic_parameter_set_Item)->num_ref_idx_l0_default_active_minus1; //Default
     num_ref_idx_l1_active_minus1=(*pic_parameter_set_Item)->num_ref_idx_l1_default_active_minus1; //Default
     Get_BS ((*seq_parameter_set_Item)->log2_max_frame_num_minus4+4, frame_num, "frame_num");
@@ -1331,7 +1557,7 @@ void File_Avc::slice_header()
             Get_SB (bottom_field_flag,                          "bottom_field_flag");
         TEST_SB_END();
     }
-    if (Element_Code==5)
+    if (Element_Code==5) //IdrPicFlag
         Skip_UE(                                                "idr_pic_id");
     if ((*seq_parameter_set_Item)->pic_order_cnt_type==0)
     {
@@ -1379,11 +1605,46 @@ void File_Avc::slice_header()
     if (nal_ref_idc)
         dec_ref_pic_marking(memory_management_control_operations);
 
-    //TODO...
-    BS_End();
-    Skip_XX(Element_Size-Element_Offset,                        "ToDo...");
+    if ((*pic_parameter_set_Item)->entropy_coding_mode_flag &&
+        (slice_type!=2 && slice_type!=7 && //I-Frames
+         slice_type!=4 && slice_type!=9))  //SI-Frames
+        Skip_UE(                                               "cabac_init_idc");
+    Skip_SE(                                                   "slice_qp_delta");
+    switch (slice_type)
+    {
+        case 3 : //SP-Frame
+        case 4 : //SI-Frame
+        case 8 : //SP-Frame
+        case 9 : //SI-Frame
+                switch (slice_type)
+                {
+                    case 3 : //SP-Frame
+                    case 8 : //SP-Frame
+                            Skip_SB(                           "sp_for_switch_flag");
+                            break;
+                    default:    ;
+                }
+                Skip_SE (                                      "slice_qs_delta");
+                break;
+        default:    ;
+    }
+    if ((*pic_parameter_set_Item)->deblocking_filter_control_present_flag)
+    {
+        Get_UE(disable_deblocking_filter_idc,                  "disable_deblocking_filter_idc");
+        if (disable_deblocking_filter_idc!=1)
+        {
+            Skip_SE(                                           "slice_alpha_c0_offset_div2");
+            Skip_SE(                                           "slice_beta_offset_div2");
+        }
+    }
+    num_slice_groups_minus1=(*pic_parameter_set_Item)->num_slice_groups_minus1; //Default
+    slice_group_map_type=(*pic_parameter_set_Item)->slice_group_map_type; //Default
+    if (num_slice_groups_minus1 > 0 && slice_group_map_type >=3 && slice_group_map_type <=5)
+        Get_BS ((*seq_parameter_set_Item)->log2_max_slice_group_change_cycle_minus4+4, slice_group_change_cycle, "slice_group_change_cycle");
 
-    FILLING_BEGIN_PRECISE();
+    Element_End0();
+
+    FILLING_BEGIN();
         //Count of I-Frames
         if (first_mb_in_slice==0 && Element_Code!=20 && (slice_type==2 || slice_type==7)) //Not slice_layer_extension, I-Frame
             IFrame_Count++;
@@ -1535,13 +1796,13 @@ void File_Avc::slice_header()
                     TemporalReferences_Min=(size_t)(TemporalReferences_Offset+pic_order_cnt);
             }
 
-            if (pic_order_cnt<0 && TemporalReferences_Offset<-pic_order_cnt) //Found in playreadyEncryptedBlowUp.ts without encryption test
+            if (pic_order_cnt<0 && TemporalReferences_Offset<(size_t)(-pic_order_cnt)) //Found in playreadyEncryptedBlowUp.ts without encryption test
             {
                 Trusted_IsNot("Problem in temporal references");
                 return;
             }
 
-            if ((int64s)(TemporalReferences_Offset+pic_order_cnt)>=3*TemporalReferences_Reserved)
+            if ((size_t)(TemporalReferences_Offset+pic_order_cnt)>=3*TemporalReferences_Reserved)
             {
                 size_t Offset=TemporalReferences_Max-TemporalReferences_Offset;
                 if (Offset%2)
@@ -1652,7 +1913,7 @@ void File_Avc::slice_header()
         }
         else if (first_mb_in_slice==0)
         {
-            if ((*seq_parameter_set_Item)->pic_order_cnt_type!=1 && first_mb_in_slice==0 && (Element_Code!=0x14 || seq_parameter_sets.empty())) //Not slice_layer_extension except if MVC only
+            if ((*seq_parameter_set_Item)->pic_order_cnt_type!=1 && (Element_Code!=0x14 || seq_parameter_sets.empty())) //Not slice_layer_extension except if MVC only
             {
                 if ((!IsSub || Frame_Count_InThisBlock) && TemporalReferences_Offset_pic_order_cnt_lsb_Diff && TemporalReferences_Offset_pic_order_cnt_lsb_Diff!=2)
                     FrameInfo.PTS+=(TemporalReferences_Offset_pic_order_cnt_lsb_Diff-(field_pic_flag?1:2))/((!(*seq_parameter_set_Item)->frame_mbs_only_flag && field_pic_flag)?1:2)*(int64s)tc;
@@ -1678,7 +1939,7 @@ void File_Avc::slice_header()
                             if ((Pos%2)==0)
                                 PictureTypes+=' ';
                         }
-                    if (!GOP_Detect(PictureTypes).empty())
+                    if (!GOP_Detect(PictureTypes).empty() && !GA94_03_IsPresent)
                         Frame_Count_Valid=Frame_Count; //We have enough frames
                 }
             }
@@ -1740,13 +2001,9 @@ void File_Avc::slice_header()
             Accept("AVC");
         if (!Status[IsFilled])
         {
-            if (IFrame_Count>=8)
+            if (!GA94_03_IsPresent && IFrame_Count>=8)
                 Frame_Count_Valid=Frame_Count; //We have enough frames
-            #ifdef MEDIAINFO_DTVCCTRANSPORT_YES
-            if (((!GA94_03_IsPresent && Frame_Count>=Frame_Count_Valid) || Frame_Count>=512)) //Going more far if captions are detected
-            #else //MEDIAINFO_DTVCCTRANSPORT_YES
             if (Frame_Count>=Frame_Count_Valid)
-            #endif //MEDIAINFO_DTVCCTRANSPORT_YES
             {
                 Fill("AVC");
                 if (!IsSub && !Streams[(size_t)Element_Code].ShouldDuplicate && MediaInfoLib::Config.ParseSpeed_Get()<1.0)
@@ -1754,6 +2011,17 @@ void File_Avc::slice_header()
             }
         }
     FILLING_END();
+}
+
+//---------------------------------------------------------------------------
+//
+void File_Avc::slice_data(bool AllCategories)
+{
+    Element_Begin1("slice_data");
+
+    Skip_BS(Data_BS_Remain(),                                   "(ToDo)");
+
+    Element_End0();
 }
 
 //---------------------------------------------------------------------------
@@ -2245,7 +2513,12 @@ void File_Avc::sei_message_user_data_registered_itu_t_t35_GA94_03_Delayed(int32u
             }
             #if MEDIAINFO_DEMUX
                 if (TemporalReferences[TemporalReferences_Min]->GA94_03)
+                {
+                    int8u Demux_Level_Save=Demux_Level;
+                    Demux_Level=8; //Ancillary
                     Demux(TemporalReferences[TemporalReferences_Min]->GA94_03->Data, TemporalReferences[TemporalReferences_Min]->GA94_03->Size, ContentType_MainStream);
+                    Demux_Level=Demux_Level_Save;
+                }
                 Element_Code=Element_Code_Old;
             #endif //MEDIAINFO_DEMUX
             if (TemporalReferences[TemporalReferences_Min]->GA94_03)
@@ -2254,7 +2527,7 @@ void File_Avc::sei_message_user_data_registered_itu_t_t35_GA94_03_Delayed(int32u
             Element_End0();
         #endif //defined(MEDIAINFO_DTVCCTRANSPORT_YES)
 
-        TemporalReferences_Min+=(seq_parameter_sets[seq_parameter_set_id]->frame_mbs_only_flag?2:1);
+        TemporalReferences_Min+=((seq_parameter_sets[seq_parameter_set_id]->frame_mbs_only_flag | !TemporalReferences[TemporalReferences_Min]->IsField)?2:1);
     }
 }
 
@@ -2348,23 +2621,21 @@ void File_Avc::sei_message_user_data_unregistered_x264(int32u payloadSize)
         Skip_XX(payloadSize,                                    "Unknown");
         return; //This is not a text string
     }
-    size_t Data_Pos;
     size_t Data_Pos_Before=0;
     size_t Loop=0;
     do
     {
-        Data_Pos=Data.find(__T(" - "), Data_Pos_Before);
+        size_t Data_Pos=Data.find(__T(" - "), Data_Pos_Before);
         if (Data_Pos==std::string::npos)
             Data_Pos=Data.size();
         if (Data.find(__T("options: "), Data_Pos_Before)==Data_Pos_Before)
         {
             Element_Begin1("options");
-            size_t Options_Pos;
             size_t Options_Pos_Before=Data_Pos_Before;
             Encoded_Library_Settings.clear();
             do
             {
-                Options_Pos=Data.find(__T(" "), Options_Pos_Before);
+                size_t Options_Pos=Data.find(__T(" "), Options_Pos_Before);
                 if (Options_Pos==std::string::npos)
                     Options_Pos=Data.size();
                 Ztring option;
@@ -2555,9 +2826,9 @@ void File_Avc::pic_parameter_set()
     Element_Name("pic_parameter_set");
 
     //Parsing
-    int32u  pic_parameter_set_id, seq_parameter_set_id, num_slice_groups_minus1, num_ref_idx_l0_default_active_minus1, num_ref_idx_l1_default_active_minus1;
-    int8u   weighted_bipred_idc;
-    bool    entropy_coding_mode_flag,bottom_field_pic_order_in_frame_present_flag, redundant_pic_cnt_present_flag, weighted_pred_flag;
+    int32u  pic_parameter_set_id, seq_parameter_set_id, num_slice_groups_minus1, num_ref_idx_l0_default_active_minus1, num_ref_idx_l1_default_active_minus1, slice_group_map_type=0;
+    int8u   weighted_bipred_idc=0;
+    bool    entropy_coding_mode_flag,bottom_field_pic_order_in_frame_present_flag, redundant_pic_cnt_present_flag, weighted_pred_flag, deblocking_filter_control_present_flag;
     BS_Begin();
     Get_UE (pic_parameter_set_id,                               "pic_parameter_set_id");
     Get_UE (seq_parameter_set_id,                               "seq_parameter_set_id");
@@ -2581,7 +2852,6 @@ void File_Avc::pic_parameter_set()
     }
     if (num_slice_groups_minus1>0)
     {
-        int32u slice_group_map_type;
         Get_UE (slice_group_map_type,                           "slice_group_map_type");
         if (slice_group_map_type==0)
         {
@@ -2628,7 +2898,7 @@ void File_Avc::pic_parameter_set()
     Skip_SE(                                                    "pic_init_qp_minus26");
     Skip_SE(                                                    "pic_init_qs_minus26");
     Skip_SE(                                                    "chroma_qp_index_offset");
-    Skip_SB(                                                    "deblocking_filter_control_present_flag");
+    Get_SB (deblocking_filter_control_present_flag,             "deblocking_filter_control_present_flag");
     Skip_SB(                                                    "constrained_intra_pred_flag");
     Get_SB (redundant_pic_cnt_present_flag,                     "redundant_pic_cnt_present_flag");
     bool more_rbsp_data=false;
@@ -2638,7 +2908,7 @@ void File_Avc::pic_parameter_set()
         while (Offset && Buffer[Buffer_Offset+(size_t)Offset]==0x00) //Searching if there are NULL bytes at the end of the data
             Offset--;
         size_t Bit_Pos=7;
-        while (!(Buffer[Buffer_Offset+(size_t)Offset]&(1<<(7-Bit_Pos))))
+        while (Bit_Pos && !(Buffer[Buffer_Offset+(size_t)Offset]&(1<<(7-Bit_Pos))))
             Bit_Pos--;
         if (Data_BS_Remain()>1+(7-Bit_Pos)+(Element_Size-Offset-1)*8)
             more_rbsp_data=true;
@@ -2648,7 +2918,7 @@ void File_Avc::pic_parameter_set()
         bool transform_8x8_mode_flag;
         Get_SB (transform_8x8_mode_flag,                        "transform_8x8_mode_flag");
         TEST_SB_SKIP(                                           "pic_scaling_matrix_present_flag");
-        for (int8u Pos=0; Pos<6+(transform_8x8_mode_flag?2:0); Pos++ )
+        for (int8u Pos=0; Pos<6+(transform_8x8_mode_flag?((*seq_parameter_set_Item)->chroma_format_idc!=3?2:6):0); Pos++ )
             {
                 TEST_SB_SKIP(                                   "pic_scaling_list_present_flag");
                     scaling_list(Pos<6?16:64);
@@ -2699,10 +2969,13 @@ void File_Avc::pic_parameter_set()
         (*pic_parameter_sets_Item)->seq_parameter_set_id                            =(int8u)seq_parameter_set_id;
         (*pic_parameter_sets_Item)->entropy_coding_mode_flag                        =entropy_coding_mode_flag;
         (*pic_parameter_sets_Item)->bottom_field_pic_order_in_frame_present_flag    =bottom_field_pic_order_in_frame_present_flag;
+        (*pic_parameter_sets_Item)->num_slice_groups_minus1                         =(int32u)num_slice_groups_minus1;
+        (*pic_parameter_sets_Item)->slice_group_map_type                            =(int32u)slice_group_map_type;
         (*pic_parameter_sets_Item)->num_ref_idx_l0_default_active_minus1            =(int8u)num_ref_idx_l0_default_active_minus1;
         (*pic_parameter_sets_Item)->num_ref_idx_l1_default_active_minus1            =(int8u)num_ref_idx_l1_default_active_minus1;
         (*pic_parameter_sets_Item)->weighted_pred_flag                              =weighted_pred_flag;
         (*pic_parameter_sets_Item)->weighted_bipred_idc                             =weighted_bipred_idc;
+        (*pic_parameter_sets_Item)->deblocking_filter_control_present_flag          =deblocking_filter_control_present_flag;
         (*pic_parameter_sets_Item)->redundant_pic_cnt_present_flag                  =redundant_pic_cnt_present_flag;
 
         //Autorisation of other streams
@@ -2848,8 +3121,10 @@ void File_Avc::slice_layer_extension(bool svc_extension_flag)
     }
     else
     {
+        BS_Begin();
         slice_header();
-        //slice_data();
+        slice_data(true);
+        BS_End();
     }
 }
 
@@ -2946,7 +3221,7 @@ bool File_Avc::seq_parameter_set_data(std::vector<seq_parameter_set_struct*> &Da
         vui_parameters(vui_parameters_Item);
     TEST_SB_END();
 
-    FILLING_BEGIN()
+    FILLING_BEGIN();
         //Integrity
         if (Data_id>=32)
         {
@@ -3012,9 +3287,9 @@ bool File_Avc::seq_parameter_set_data(std::vector<seq_parameter_set_struct*> &Da
             TemporalReferences.resize(4*MaxNumber);
             TemporalReferences_Reserved=MaxNumber;
         }
-    FILLING_ELSE()
+    FILLING_ELSE();
         return false;
-    FILLING_END()
+    FILLING_END();
     return true;
 }
 
@@ -3249,11 +3524,11 @@ void File_Avc::seq_parameter_set_mvc_extension(int32u subset_seq_parameter_sets_
     Element_End0();
 
     std::vector<seq_parameter_set_struct*>::iterator subset_seq_parameter_sets_Item=subset_seq_parameter_sets.begin()+subset_seq_parameter_sets_id;
-    FILLING_BEGIN()
+    FILLING_BEGIN();
         (*subset_seq_parameter_sets_Item)->num_views_minus1                         =(int16u)num_views_minus1;
-    FILLING_ELSE()
+    FILLING_ELSE();
         delete (*subset_seq_parameter_sets_Item); (*subset_seq_parameter_sets_Item)=NULL;
-    FILLING_END()
+    FILLING_END();
 }
 
 //---------------------------------------------------------------------------
@@ -3513,4 +3788,3 @@ std::string File_Avc::ScanOrder_Detect (std::string ScanOrders)
 } //NameSpace
 
 #endif //MEDIAINFO_AVC_YES
-

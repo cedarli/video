@@ -1,21 +1,8 @@
-// File_Mpega - Info for MPEG Audio files
-// Copyright (C) 2002-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 #ifndef MediaInfo_File_MpegaH
@@ -64,6 +51,7 @@ private :
     void Header_Parse();
     void Data_Parse();
     void Data_Parse_Fill();
+    void audio_data_Layer3();
 
     //Element
     bool Header_Xing();
@@ -110,6 +98,14 @@ private :
 
     //Helpers
     bool Element_Name_IsOK();
+
+    #if MEDIAINFO_DEMUX
+        #if MEDIAINFO_ADVANCED
+            int8u sampling_frequency_Frame0;
+            int8u mode_Frame0;
+            bool  File_Demux_Unpacketize_StreamLayoutChange_Skip;
+        #endif //MEDIAINFO_ADVANCED
+    #endif //MEDIAINFO_DEMUX
 };
 
 } //NameSpace

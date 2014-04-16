@@ -1,21 +1,8 @@
-// File__Analysze - Base for analyze files
-// Copyright (C) 2007-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 #ifndef MediaInfo_File__AnalyzeH
@@ -31,6 +18,12 @@
     #include "MediaInfo/Multiple/File_Ibi_Creation.h"
 #endif //MEDIAINFO_IBI
 #include "tinyxml2.h"
+#if MEDIAINFO_MD5
+    extern "C"
+    {
+        #include <md5.h>
+    }
+#endif //MEDIAINFO_MD5
 //---------------------------------------------------------------------------
 
 namespace MediaInfoLib
@@ -64,7 +57,7 @@ public :
     void    Open_Buffer_Init        (File__Analyze* Sub);
     void    Open_Buffer_Init        (File__Analyze* Sub, int64u File_Size);
     void    Open_Buffer_Continue    (                    const int8u* Buffer, size_t Buffer_Size);
-    void    Open_Buffer_Continue    (File__Analyze* Sub, const int8u* Buffer, size_t Buffer_Size, bool IsNewPacket=true);
+    void    Open_Buffer_Continue    (File__Analyze* Sub, const int8u* Buffer, size_t Buffer_Size, bool IsNewPacket=true, float64 Ratio=1.0);
     void    Open_Buffer_Continue    (File__Analyze* Sub, size_t Buffer_Size) {if (Element_Offset+Buffer_Size<=Element_Size) Open_Buffer_Continue(Sub, Buffer+Buffer_Offset+(size_t)Element_Offset, Buffer_Size); Element_Offset+=Buffer_Size;}
     void    Open_Buffer_Continue    (File__Analyze* Sub) {if (Element_Offset<=Element_Size) Open_Buffer_Continue(Sub, Buffer+Buffer_Offset+(size_t)Element_Offset, (size_t)(Element_Size-Element_Offset)); Element_Offset=Element_Size;}
     void    Open_Buffer_Position_Set(int64u File_Offset);
@@ -123,6 +116,9 @@ public :
     std::vector<int64u> Offsets_Stream;
     std::vector<int64u> Offsets_Buffer;
     size_t              Offsets_Pos;
+    int8u*              OriginalBuffer;
+    size_t              OriginalBuffer_Size;
+    size_t              OriginalBuffer_Capacity;
 
     //Out
     int64u PTS_Begin;                  //In nanoseconds
@@ -400,7 +396,7 @@ public :
     void Get_BF4  (float32 &Info, const char* Name);
     void Get_BF8  (float64 &Info, const char* Name);
     void Get_BF10 (float80 &Info, const char* Name);
-    void Get_BFP4 (size_t Bits, float32 &Info, const char* Name);
+    void Get_BFP4 (int8u Bits, float32 &Info, const char* Name);
     void Peek_B1  (int8u   &Info);
     void Peek_B2  (int16u  &Info);
     void Peek_B3  (int32u  &Info);
@@ -426,7 +422,7 @@ public :
     void Skip_BF4 (               const char* Name);
     void Skip_BF8 (               const char* Name);
     void Skip_BF10(               const char* Name);
-    void Skip_BFP4(size_t Bits,                const char* Name);
+    void Skip_BFP4(int8u Bits,                const char* Name);
     #define Info_B1(_INFO, _NAME)   int8u   _INFO; Get_B1  (_INFO, _NAME)
     #define Info_B2(_INFO, _NAME)   int16u  _INFO; Get_B2  (_INFO, _NAME)
     #define Info_B3(_INFO, _NAME)   int32u  _INFO; Get_B3  (_INFO, _NAME)
@@ -710,38 +706,38 @@ public :
     // BitStream
     //***************************************************************************
 
-    void Get_BS (size_t Bits, int32u  &Info, const char* Name);
+    void Get_BS (int8u  Bits, int32u  &Info, const char* Name);
     void Get_SB (             bool    &Info, const char* Name);
     bool Get_SB(                             const char* Name)  {bool Temp; Get_SB(Temp, Name); return Temp;}
-    void Get_S1 (size_t Bits, int8u   &Info, const char* Name);
-    void Get_S2 (size_t Bits, int16u  &Info, const char* Name);
-    void Get_S3 (size_t Bits, int32u  &Info, const char* Name);
-    void Get_S4 (size_t Bits, int32u  &Info, const char* Name);
-    void Get_S5 (size_t Bits, int64u  &Info, const char* Name);
-    void Get_S6 (size_t Bits, int64u  &Info, const char* Name);
-    void Get_S7 (size_t Bits, int64u  &Info, const char* Name);
-    void Get_S8 (size_t Bits, int64u  &Info, const char* Name);
-    void Peek_BS(size_t Bits, int32u  &Info);
-    void Peek_SB(              bool    &Info);
+    void Get_S1 (int8u  Bits, int8u   &Info, const char* Name);
+    void Get_S2 (int8u  Bits, int16u  &Info, const char* Name);
+    void Get_S3 (int8u  Bits, int32u  &Info, const char* Name);
+    void Get_S4 (int8u  Bits, int32u  &Info, const char* Name);
+    void Get_S5 (int8u  Bits, int64u  &Info, const char* Name);
+    void Get_S6 (int8u  Bits, int64u  &Info, const char* Name);
+    void Get_S7 (int8u  Bits, int64u  &Info, const char* Name);
+    void Get_S8 (int8u  Bits, int64u  &Info, const char* Name);
+    void Peek_BS(int8u  Bits, int32u  &Info);
+    void Peek_SB(             bool    &Info);
     bool Peek_SB()                                              {bool Temp; Peek_SB(Temp); return Temp;}
-    void Peek_S1(size_t Bits, int8u   &Info);
-    void Peek_S2(size_t Bits, int16u  &Info);
-    void Peek_S3(size_t Bits, int32u  &Info);
-    void Peek_S4(size_t Bits, int32u  &Info);
-    void Peek_S5(size_t Bits, int64u  &Info);
-    void Peek_S6(size_t Bits, int64u  &Info);
-    void Peek_S7(size_t Bits, int64u  &Info);
-    void Peek_S8(size_t Bits, int64u  &Info);
+    void Peek_S1(int8u  Bits, int8u   &Info);
+    void Peek_S2(int8u  Bits, int16u  &Info);
+    void Peek_S3(int8u  Bits, int32u  &Info);
+    void Peek_S4(int8u  Bits, int32u  &Info);
+    void Peek_S5(int8u  Bits, int64u  &Info);
+    void Peek_S6(int8u  Bits, int64u  &Info);
+    void Peek_S7(int8u  Bits, int64u  &Info);
+    void Peek_S8(int8u  Bits, int64u  &Info);
     void Skip_BS(size_t Bits,                const char* Name);
     void Skip_SB(                            const char* Name);
-    void Skip_S1(size_t Bits,                const char* Name);
-    void Skip_S2(size_t Bits,                const char* Name);
-    void Skip_S3(size_t Bits,                const char* Name);
-    void Skip_S4(size_t Bits,                const char* Name);
-    void Skip_S5(size_t Bits,                const char* Name);
-    void Skip_S6(size_t Bits,                const char* Name);
-    void Skip_S7(size_t Bits,                const char* Name);
-    void Skip_S8(size_t Bits,                const char* Name);
+    void Skip_S1(int8u  Bits,                const char* Name);
+    void Skip_S2(int8u  Bits,                const char* Name);
+    void Skip_S3(int8u  Bits,                const char* Name);
+    void Skip_S4(int8u  Bits,                const char* Name);
+    void Skip_S5(int8u  Bits,                const char* Name);
+    void Skip_S6(int8u  Bits,                const char* Name);
+    void Skip_S7(int8u  Bits,                const char* Name);
+    void Skip_S8(int8u  Bits,                const char* Name);
     void Mark_0 ();
     void Mark_0_NoTrustError (); //Use it for providing a warning instead of a non-trusting error
     void Mark_1 ();
@@ -816,42 +812,26 @@ public :
     bool Get_TB(                             const char* Name)  {bool Temp; Get_TB(Temp, Name); return Temp;}
     void Get_T1 (size_t Bits, int8u   &Info, const char* Name);
     void Get_T2 (size_t Bits, int16u  &Info, const char* Name);
-    void Get_T3 (size_t Bits, int32u  &Info, const char* Name);
     void Get_T4 (size_t Bits, int32u  &Info, const char* Name);
-    void Get_T5 (size_t Bits, int64u  &Info, const char* Name);
-    void Get_T6 (size_t Bits, int64u  &Info, const char* Name);
-    void Get_T7 (size_t Bits, int64u  &Info, const char* Name);
     void Get_T8 (size_t Bits, int64u  &Info, const char* Name);
     void Peek_BT(size_t Bits, int32u  &Info);
     void Peek_TB(              bool    &Info);
     bool Peek_TB()                                              {bool Temp; Peek_TB(Temp); return Temp;}
     void Peek_T1(size_t Bits, int8u   &Info);
     void Peek_T2(size_t Bits, int16u  &Info);
-    void Peek_T3(size_t Bits, int32u  &Info);
     void Peek_T4(size_t Bits, int32u  &Info);
-    void Peek_T5(size_t Bits, int64u  &Info);
-    void Peek_T6(size_t Bits, int64u  &Info);
-    void Peek_T7(size_t Bits, int64u  &Info);
     void Peek_T8(size_t Bits, int64u  &Info);
     void Skip_BT(size_t Bits,                const char* Name);
     void Skip_TB(                            const char* Name);
     void Skip_T1(size_t Bits,                const char* Name);
     void Skip_T2(size_t Bits,                const char* Name);
-    void Skip_T3(size_t Bits,                const char* Name);
     void Skip_T4(size_t Bits,                const char* Name);
-    void Skip_T5(size_t Bits,                const char* Name);
-    void Skip_T6(size_t Bits,                const char* Name);
-    void Skip_T7(size_t Bits,                const char* Name);
     void Skip_T8(size_t Bits,                const char* Name);
     #define Info_BT(_BITS, _INFO, _NAME) int32u  _INFO; Get_BT(_BITS, _INFO, _NAME)
     #define Info_TB(_INFO, _NAME)        bool    _INFO; Get_TB(       _INFO, _NAME)
     #define Info_T1(_BITS, _INFO, _NAME) int8u   _INFO; Get_T1(_BITS, _INFO, _NAME)
     #define Info_T2(_BITS, _INFO, _NAME) int16u  _INFO; Get_T2(_BITS, _INFO, _NAME)
-    #define Info_T3(_BITS, _INFO, _NAME) int32u  _INFO; Get_T4(_BITS, _INFO, _NAME)
     #define Info_T4(_BITS, _INFO, _NAME) int32u  _INFO; Get_T4(_BITS, _INFO, _NAME)
-    #define Info_T5(_BITS, _INFO, _NAME) int64u  _INFO; Get_T5(_BITS, _INFO, _NAME)
-    #define Info_T6(_BITS, _INFO, _NAME) int64u  _INFO; Get_T6(_BITS, _INFO, _NAME)
-    #define Info_T7(_BITS, _INFO, _NAME) int64u  _INFO; Get_T7(_BITS, _INFO, _NAME)
     #define Info_T8(_BITS, _INFO, _NAME) int64u  _INFO; Get_T8(_BITS, _INFO, _NAME)
 
     #define TEST_TB_GET(_CODE, _NAME) \
@@ -1014,27 +994,6 @@ public :
     bool Element_IsNotFinished ();
     bool Element_IsWaitingForMoreData ();
 
-    //Begin
-    #define FILLING_BEGIN() \
-        if (Element_IsOK()) \
-        {
-
-    #define FILLING_BEGIN_PRECISE() \
-        if (Element_Offset!=Element_Size) \
-            Trusted_IsNot("Size error"); \
-        else if (Element_IsOK()) \
-        {
-
-    //Else
-    #define FILLING_ELSE() \
-        } \
-        else \
-        { \
-
-    //End
-    #define FILLING_END() \
-        }
-
     //***************************************************************************
     // Merging
     //***************************************************************************
@@ -1045,6 +1004,8 @@ public :
     size_t Merge(MediaInfo_Internal &ToAdd, stream_t StreamKind, size_t StreamPos_From, size_t StreamPos_To, bool Erase=true); //Merge 2 streams
     size_t Merge(File__Analyze &ToAdd, bool Erase=true); //Merge 2 File_Base
     size_t Merge(File__Analyze &ToAdd, stream_t StreamKind, size_t StreamPos_From, size_t StreamPos_To, bool Erase=true); //Merge 2 streams
+
+    void CodecID_Fill           (const Ztring &Value, stream_t StreamKind, size_t StreamPos, infocodecid_format_t Format);
 
     //***************************************************************************
     // Finalize
@@ -1060,7 +1021,7 @@ protected :
     void Streams_Finish_StreamOnly_Video(size_t StreamPos);
     void Streams_Finish_StreamOnly_Audio(size_t StreamPos);
     void Streams_Finish_StreamOnly_Text(size_t StreamPos);
-    void Streams_Finish_StreamOnly_Chapters(size_t StreamPos);
+    void Streams_Finish_StreamOnly_Other(size_t StreamPos);
     void Streams_Finish_StreamOnly_Image(size_t StreamPos);
     void Streams_Finish_StreamOnly_Menu(size_t StreamPos);
     void Streams_Finish_InterStreams();
@@ -1085,7 +1046,6 @@ protected :
     void Kilo_Kilo123           (stream_t StreamKind, size_t StreamPos, size_t Parameter);
     void Value_Value123         (stream_t StreamKind, size_t StreamPos, size_t Parameter);
     void YesNo_YesNo            (stream_t StreamKind, size_t StreamPos, size_t Parameter);
-    void CodecID_Fill           (const Ztring &Value, stream_t StreamKind, size_t StreamPos, infocodecid_format_t Format);
 
     //***************************************************************************
     //
@@ -1125,9 +1085,9 @@ private :
     //***************************************************************************
 
     void Buffer_Clear(); //Clear the buffer
-    bool Open_Buffer_Continue_Loop();
 protected :
     //Buffer
+    bool Open_Buffer_Continue_Loop();
     const int8u* Buffer;
 public : //TO CHANGE
     size_t Buffer_Size;
@@ -1157,9 +1117,7 @@ protected :
     bool FileHeader_Begin_XML(tinyxml2::XMLDocument &Document);
     bool Synchronize_0x000001();
 public:
-    static void Streams_Accept_TestContinuousFileNames_Static(ZtringList &File_Names, bool IsReferenced);
-protected:
-    void Streams_Accept_TestContinuousFileNames();
+    void TestContinuousFileNames(size_t CountOfFiles=24, Ztring FileExtension=Ztring());
 
 private :
 
@@ -1291,6 +1249,12 @@ public :
 
     int64u  Unsynch_Frame_Count;
 
+    //MD5
+    #if MEDIAINFO_MD5
+        struct MD5Context*  MD5;
+        int64u              Md5_ParseUpTo;
+    #endif //MEDIAINFO_MD5
+
     #if MEDIAINFO_SEEK
     private:
         bool Seek_Duration_Detected;
@@ -1301,7 +1265,8 @@ public :
         bool    Config_Ibi_Create;
         int64u  Ibi_SynchronizationOffset_Current;
         int64u  Ibi_SynchronizationOffset_BeginOfFrame;
-        ibi::stream* IbiStream;
+        ibi     Ibi; //If Main only
+        ibi::stream* IbiStream; //If sub only
         size_t  Ibi_Read_Buffer_Seek        (size_t Method, int64u Value, int64u ID);
         void    Ibi_Read_Buffer_Unsynched   ();
         void    Ibi_Stream_Finish           ();
@@ -1354,6 +1319,28 @@ public :
     { \
     } \
 */
+
+
+    //Begin
+    #define FILLING_BEGIN() \
+        if (Element_IsOK()) \
+        {
+
+    #define FILLING_BEGIN_PRECISE() \
+        if (Element_Offset!=Element_Size) \
+            Trusted_IsNot("Size error"); \
+        else if (Element_IsOK()) \
+        {
+
+    //Else
+    #define FILLING_ELSE() \
+        } \
+        else \
+        { \
+
+    //End
+    #define FILLING_END() \
+        }
 
 #define ATOM_BEGIN \
     if (Level!=Element_Level) \
@@ -1470,10 +1457,10 @@ public :
     ATOM_BEGIN \
 
 #define DATA_END \
-        default : ; \
-            Skip_XX(Element_TotalSize_Get(), "Unknown"); \
-    }} \
-     \
+            default : ; \
+                Skip_XX(Element_TotalSize_Get(), "Unknown"); \
+        } \
+    } \
 
 #define DATA_DEFAULT \
         default : \

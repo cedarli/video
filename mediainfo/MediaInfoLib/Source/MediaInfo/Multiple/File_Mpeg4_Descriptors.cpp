@@ -1,20 +1,9 @@
-// File_Mpeg4 - Info for MPEG-4 files
-// Copyright (C) 2005-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 // Descriptors part
@@ -302,6 +291,7 @@ File_Mpeg4_Descriptors::File_Mpeg4_Descriptors()
 
     //In
     KindOfStream=Stream_Max;
+    PosOfStream=(size_t)-1;
     Parser_DoNotFreeIt=false;
     SLConfig_DoNotFreeIt=false;
 
@@ -810,21 +800,24 @@ void File_Mpeg4_Descriptors::Descriptor_05()
 
     //Demux
     #if MEDIAINFO_DEMUX
-        switch (Config->Demux_InitData_Get())
-        {
-            case 0 :    //In demux event
-                        Demux_Level=2; //Container
-                        Demux(Buffer+Buffer_Offset, (size_t)Element_Size, ContentType_Header);
-                        break;
-            case 1 :    //In field
-                        {
-                        std::string Data_Raw((const char*)(Buffer+Buffer_Offset), (size_t)Element_Size);
-                        std::string Data_Base64(Base64::encode(Data_Raw));
-                        Parser->Fill(KindOfStream, 0, "Demux_InitBytes", Data_Base64);
-                        }
-                        break;
-            default :   ;
-        }
+        if (ObjectTypeId!=0x21 || !Config->Demux_Avc_Transcode_Iso14496_15_to_Iso14496_10_Get()) //0x21 is AVC
+            switch (Config->Demux_InitData_Get())
+            {
+                case 0 :    //In demux event
+                            Demux_Level=2; //Container
+                            Demux(Buffer+Buffer_Offset, (size_t)Element_Size, ContentType_Header);
+                            break;
+                case 1 :    //In field
+                            {
+                            std::string Data_Raw((const char*)(Buffer+Buffer_Offset), (size_t)Element_Size);
+                            std::string Data_Base64(Base64::encode(Data_Raw));
+                            Parser->Fill(KindOfStream, PosOfStream, "Demux_InitBytes", Data_Base64);
+                            if (PosOfStream<(*Parser->Stream_More)[KindOfStream].size())
+                                (*Parser->Stream_More)[KindOfStream][PosOfStream](Ztring().From_Local("Demux_InitBytes"), Info_Options)=__T("N NT");
+                            }
+                            break;
+                default :   ;
+            }
     #endif //MEDIAINFO_DEMUX
 
     //Parser configuration after the parsing

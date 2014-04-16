@@ -1,20 +1,9 @@
-// File_N19 - Info for N19 files
-// Copyright (C) 2010-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 // Information about N19 files
@@ -39,10 +28,18 @@ namespace MediaInfoLib
 
 class File_N19 : public File__Analyze
 {
+public :
+    File_N19();
+
 private :
     //Buffer - File header
     bool FileHeader_Begin();
     void FileHeader_Parse();
+
+    //Buffer - Global
+    #if MEDIAINFO_SEEK
+    size_t Read_Buffer_Seek (size_t Method, int64u Value, int64u ID);
+    #endif //MEDIAINFO_SEEK
 
     //Buffer - Per element
     void Header_Parse();
@@ -51,6 +48,9 @@ private :
     //Temp
     int64u FirstFrame_TCI;
     int64u DFC;
+    #if MEDIAINFO_DEMUX
+        int64u TCO_Latest;
+    #endif //MEDIAINFO_DEMUX
 };
 
 } //NameSpace

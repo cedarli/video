@@ -1,21 +1,8 @@
-// File_Eia708 - Info for EIA-708 files
-// Copyright (C) 2009-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -51,10 +38,12 @@ File_Eia708::File_Eia708()
 {
     //Config
     PTS_DTS_Needed=true;
+    MustSynchronize=true;
 
     //In
     cc_type=(int8u)-1;
     AspectRatio=((float32)4)/3; //Default to 4:3
+    ParserName=__T("EIA-708");
 
     //Stream
     service_number=(int8u)-1;
@@ -86,6 +75,8 @@ void File_Eia708::Streams_Fill()
         {
             Stream_Prepare(Stream_Text);
             Fill(Stream_Text, StreamPos_Last, Text_ID, Pos);
+            Fill(Stream_Text, StreamPos_Last, "CaptionServiceName", Pos);
+            (*Stream_More)[StreamKind_Last][StreamPos_Last](Ztring().From_Local("CaptionServiceName"), Info_Options)=__T("N NT");
             Fill(Stream_Text, StreamPos_Last, Text_Format, "EIA-708");
             Fill(Stream_Text, StreamPos_Last, Text_StreamSize, 0);
             Fill(Stream_Text, StreamPos_Last, Text_BitRate_Mode, "CBR");
@@ -95,6 +86,33 @@ void File_Eia708::Streams_Fill()
 //---------------------------------------------------------------------------
 void File_Eia708::Streams_Finish()
 {
+}
+
+//***************************************************************************
+// Buffer - Synchro
+//***************************************************************************
+
+//---------------------------------------------------------------------------
+bool File_Eia708::Synchronize()
+{
+    if (cc_type!=3)
+        return false; //Waiting for sync from underlying layer
+
+    if (!Status[IsAccepted])
+        Accept("EIA-708");
+
+    //Synched is OK
+    return true;
+}
+
+//---------------------------------------------------------------------------
+bool File_Eia708::Synched_Test()
+{
+    if (cc_type==4) //Magic value saying that the buffer must be kept (this is only a point of synchro from the undelying layer)
+        Buffer_Offset=Buffer_Size; //Sync point
+
+    //We continue
+    return true;
 }
 
 //***************************************************************************
@@ -110,25 +128,11 @@ void File_Eia708::Read_Buffer_Init()
 void File_Eia708::Read_Buffer_Continue()
 {
     FrameInfo.PTS=FrameInfo.DTS;
-
-    if (!Status[IsAccepted])
-    {
-        if (cc_type!=3)
-        {
-            Skip_B2(                                                "Waiting for header");
-            return;
-        }
-
-        Accept("EIA-708");
-    }
 }
 
 //---------------------------------------------------------------------------
 void File_Eia708::Read_Buffer_Unsynched()
 {
-    if (cc_type==4) //Magic value saying that the buffer must be kept (this is only a point of synchro from the undelying layer)
-        return;
-
     for (int8u service_number=1; service_number<Streams.size(); service_number++)
         if (Streams[service_number])
         {
@@ -1181,8 +1185,8 @@ void File_Eia708::SWA()
     Skip_S1(4,                                                  "effect speed");
     Skip_S1(2,                                                  "effect direction");
     Skip_S1(2,                                                  "display effect");
-    Mark_0();
-    Mark_0();
+    Mark_0_NoTrustError();
+    Mark_0_NoTrustError();
     Skip_S1(2,                                                  "edge red");
     Skip_S1(2,                                                  "edge green");
     Skip_S1(2,                                                  "edge blue");
@@ -1284,6 +1288,18 @@ void File_Eia708::DFx(int8u WindowID)
     Window->column_count=column_count+1;
     Window->Minimal.x=0;
     Window->Minimal.y=0;
+
+    if (Window->row_count>12)
+    {
+        Window->row_count=12; //Limitation of specifications
+    }
+    if (AspectRatio && Window->column_count>(int8u)(24*AspectRatio))
+    {
+        Window->column_count=(int8u)(24*AspectRatio); //Limitation of specifications
+    }
+    Window->Minimal.CC.resize(Window->row_count);
+    for (int8u Pos_Y=0; Pos_Y<Window->row_count; Pos_Y++)
+        Window->Minimal.CC[Pos_Y].resize(Window->column_count);
 
     if (Window->row_count>12)
     {

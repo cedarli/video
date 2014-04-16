@@ -1,21 +1,8 @@
-// File_DvDif - Info for DV-DIF files
-// Copyright (C) 2002-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -239,6 +226,7 @@ File_DvDif::File_DvDif()
 :File__Analyze()
 {
     //Configuration
+    ParserName=__T("DV");
     MustSynchronize=true;
     Buffer_TotalBytes_FirstSynched_Max=64*1024;
 
@@ -250,7 +238,7 @@ File_DvDif::File_DvDif()
     //Temp
     FrameSize_Theory=0;
     Duration=0;
-    TimeCode_First=(int64u)-1;
+    TimeCode_FirstFrame_ms=(int64u)-1;
     Synched_Test_Reset();
     DSF_IsValid=false;
     APT=0xFF; //Impossible
@@ -486,7 +474,7 @@ void File_DvDif::Streams_Fill()
         {
             Fill(Stream_General, 0, General_Format_Commercial_IfAny, "DVCPRO HD");
             Fill(Stream_Video, 0, Video_Format_Commercial_IfAny, "DVCPRO HD");
-            Fill(Stream_Video, 0, Video_BitDepth, 10, 10, true); //MXF files say that DVCPRO HD are 10 bits, exact?
+            Clear(Stream_Video, 0, Video_BitDepth); //MXF files say that DVCPRO HD streams are 8 or 10 bits, exact?
         }
         else
         {
@@ -505,13 +493,17 @@ void File_DvDif::Streams_Fill()
         Fill(Stream_Video, 0, Video_BitRate_Mode, "CBR");
 
     //Delay
-    if (TimeCode_First!=(int64u)-1)
+    if (TimeCode_FirstFrame_ms!=(int64u)-1)
     {
-        Fill(Stream_Video, 0, Video_Delay, TimeCode_First);
+        Fill(Stream_Video, 0, Video_Delay, TimeCode_FirstFrame_ms);
+        if (TimeCode_FirstFrame.size()==11)
+            Fill(Stream_Video, 0, Video_Delay_DropFrame, TimeCode_FirstFrame[8]==';'?"Yes":"No");
         Fill(Stream_Video, 0, Video_Delay_Source, "Stream");
+        Fill(Stream_Video, 0, Video_TimeCode_FirstFrame, TimeCode_FirstFrame.c_str());
+        Fill(Stream_Video, 0, Video_TimeCode_Source, "Subcode time code");
         for (size_t Pos=0; Pos<Count_Get(Stream_Audio); Pos++)
         {
-            Fill(Stream_Audio, Pos, Audio_Delay, TimeCode_First);
+            Fill(Stream_Audio, Pos, Audio_Delay, TimeCode_FirstFrame_ms);
             Fill(Stream_Audio, Pos, Audio_Delay_Source, "Stream");
         }
     }
@@ -1339,8 +1331,8 @@ void File_DvDif::timecode()
         return;
     }
 
-    //PArsing
-    int8u Temp;
+    //Parsing
+    int8u Frames_Units, Frames_Tens, Seconds_Units, Seconds_Tens, Minutes_Units, Minutes_Tens, Hours_Units, Hours_Tens;
     int64u MilliSeconds=0;
     int8u  Frames=0;
     bool   DropFrame=false;
@@ -1352,10 +1344,10 @@ void File_DvDif::timecode()
         Skip_SB(                                                "Arbitrary bit");
     else        //525/60
         Get_SB (DropFrame,                                      "DP - Drop frame"); //525/60
-    Get_S1 (2, Temp,                                            "Frames (Tens)");
-    Frames+=Temp*10;
-    Get_S1 (4, Temp,                                            "Frames (Units)");
-    Frames+=Temp;
+    Get_S1 (2, Frames_Tens,                                     "Frames (Tens)");
+    Frames+=Frames_Tens*10;
+    Get_S1 (4, Frames_Units,                                    "Frames (Units)");
+    Frames+=Frames_Units;
 
     if (!DSF_IsValid)
         Skip_SB(                                                "BGF0 or PC");
@@ -1363,10 +1355,10 @@ void File_DvDif::timecode()
         Skip_SB(                                                "BGF0 - Binary group flag");
     else        //525/60
         Skip_SB(                                                "PC - Biphase mark polarity correction"); //0=even; 1=odd
-    Get_S1 (3, Temp,                                            "Seconds (Tens)");
-    MilliSeconds+=Temp*10*1000;
-    Get_S1 (4, Temp,                                            "Seconds (Units)");
-    MilliSeconds+=Temp*1000;
+    Get_S1 (3, Seconds_Tens,                                    "Seconds (Tens)");
+    MilliSeconds+=Seconds_Tens*10*1000;
+    Get_S1 (4, Seconds_Units,                                   "Seconds (Units)");
+    MilliSeconds+=Seconds_Units*1000;
 
     if (!DSF_IsValid)
         Skip_SB(                                                "BGF2 or BGF0");
@@ -1374,10 +1366,10 @@ void File_DvDif::timecode()
         Skip_SB(                                                "BGF2 - Binary group flag");
     else        //525/60
         Skip_SB(                                                "BGF0 - Binary group flag");
-    Get_S1 (3, Temp,                                            "Minutes (Tens)");
-    MilliSeconds+=Temp*10*60*1000;
-    Get_S1 (4, Temp,                                            "Minutes (Units)");
-    MilliSeconds+=Temp*60*1000;
+    Get_S1 (3, Minutes_Tens,                                    "Minutes (Tens)");
+    MilliSeconds+=Minutes_Tens*10*60*1000;
+    Get_S1 (4, Minutes_Units,                                   "Minutes (Units)");
+    MilliSeconds+=Minutes_Units*60*1000;
 
     if (!DSF_IsValid)
         Skip_SB(                                                "PC or BGF1");
@@ -1386,18 +1378,31 @@ void File_DvDif::timecode()
     else        //525/60
         Skip_SB(                                                "BGF1 - Binary group flag");
     Skip_SB(                                                    "BGF2 - Binary group flag");
-    Get_S1 (2, Temp,                                            "Hours (Tens)");
-    MilliSeconds+=Temp*10*60*60*1000;
-    Get_S1 (4, Temp,                                            "Hours (Units)");
-    MilliSeconds+=Temp*60*60*1000;
+    Get_S1 (2, Hours_Tens,                                      "Hours (Tens)");
+    MilliSeconds+=Hours_Tens*10*60*60*1000;
+    Get_S1 (4, Hours_Units,                                     "Hours (Units)");
+    MilliSeconds+=Hours_Units*60*60*1000;
     Element_Info1(Ztring().Duration_From_Milliseconds(MilliSeconds+((DSF_IsValid && Frames!=45)?((int64u)(Frames/(DSF?25.000:29.970)*1000)):0)));
     BS_End();
 
-    if (TimeCode_First==(int64u)-1 && MilliSeconds!=167185000) //if all bits are set to 1, this is not a valid timestamp
+    if (TimeCode_FirstFrame_ms==(int64u)-1 && MilliSeconds!=167185000) //if all bits are set to 1, this is not a valid timestamp
     {
-        TimeCode_First=MilliSeconds;
+        TimeCode_FirstFrame_ms=MilliSeconds;
         if (DSF_IsValid && Frames!=45) //all bits are set to 1
-            TimeCode_First+=(int64u)(Frames/(DSF?25.000:29.970)*1000);
+
+        TimeCode_FirstFrame_ms+=(int64u)(Frames/(DSF?25.000:29.970)*1000);
+
+        TimeCode_FirstFrame+=('0'+Hours_Tens);
+        TimeCode_FirstFrame+=('0'+Hours_Units);
+        TimeCode_FirstFrame+=':';
+        TimeCode_FirstFrame+=('0'+Minutes_Tens);
+        TimeCode_FirstFrame+=('0'+Minutes_Units);
+        TimeCode_FirstFrame+=':';
+        TimeCode_FirstFrame+=('0'+Seconds_Tens);
+        TimeCode_FirstFrame+=('0'+Seconds_Units);
+        TimeCode_FirstFrame+=DropFrame?';':':';
+        TimeCode_FirstFrame+=('0'+Frames_Tens);
+        TimeCode_FirstFrame+=('0'+Frames_Units);
     }
 }
 
@@ -1437,7 +1442,7 @@ void File_DvDif::audio_source()
     BS_End();
 
     FILLING_BEGIN();
-        if (!IgnoreAudio && Streams_Audio.empty() && Dv_Audio_SamplingRate[SamplingRate] && Dv_Audio_BitDepth[Resolution] && Dv_Audio_SamplingRate[SamplingRate] && Dv_Audio_BitDepth[Resolution])
+        if (!IgnoreAudio && Streams_Audio.empty() && Dv_Audio_SamplingRate[SamplingRate] && Dv_Audio_BitDepth[Resolution])
         {
             //Calculating the count of audio
             size_t Audio_Count=1;

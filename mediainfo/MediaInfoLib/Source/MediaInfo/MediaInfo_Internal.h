@@ -1,20 +1,9 @@
-// MediaInfo_Internal - All information about media files
-// Copyright (C) 2002-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 // Give information about a lot of media files
@@ -120,6 +109,9 @@ private :
     friend class File_MpegTs;//Theses classes need access to internal structure for optimization. There is recursivity with theses formats
     friend class File_MpegPs;//Theses classes need access to internal structure for optimization. There is recursivity with theses formats
     friend class File_Mxf;   //Theses classes need access to internal structure for optimization. There is recursivity with theses formats
+    friend class File_DcpAm; //Theses classes need access to internal structure for optimization. There is recursivity with theses formats
+    friend class File_DcpCpl;//Theses classes need access to internal structure for optimization. There is recursivity with theses formats
+    friend class File_DcpPkl;//Theses classes need access to internal structure for optimization. There is recursivity with theses formats
     friend class File__ReferenceFilesHelper; //Theses classes need access to internal structure for optimization. There is recursivity with theses formats
 
     //Parsing handles
@@ -144,6 +136,10 @@ private :
 
 public :
     bool SelectFromExtension (const String &Parser); //Select File_* from the parser name
+    void TestContinuousFileNames();
+    #if MEDIAINFO_EVENTS
+        void Event_Prepare (struct MediaInfo_Event_Generic* Event);
+    #endif // MEDIAINFO_EVENTS
     #if !defined(MEDIAINFO_READER_NO)
         int  ListFormats(const String &File_Name=String());
     #else //!defined(MEDIAINFO_READER_NO)

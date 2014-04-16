@@ -1,21 +1,8 @@
-// File_OtherText - Use magic number to detect only the format (Text)
-// Copyright (C) 2006-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -47,14 +34,21 @@ namespace MediaInfoLib
 void File_OtherText::Read_Buffer_Continue()
 {
     if (Buffer_Size<0x200)
+    {
+        Element_WaitForMoreData();
         return;
+    }
+
+    Element_Offset=File_Size-(File_Offset+Buffer_Offset);
 
     Ztring Format, FormatMore, Codec;
     Ztring File;
     ZtringList Lines;
 
     //Feed File and Lines
-    File.From_Local((char*)Buffer, Buffer_Size); //Ansi
+    File.From_UTF8((const char*)Buffer, Buffer_Size>65536?65536:Buffer_Size);
+    if (File.empty())
+        File.From_Local((const char*)Buffer, Buffer_Size>65536?65536:Buffer_Size); // Trying from local code page
     if (File.size()<0x100)
     {
         File.From_Unicode((wchar_t*)Buffer, 0, Buffer_Size/sizeof(wchar_t)); //Unicode with BOM
@@ -67,49 +61,14 @@ void File_OtherText::Read_Buffer_Continue()
     }
     if (File.size()>0x1000)
         File.resize(0x1000); //Do not work on too big
-    if (File.find(__T("\x0D\x0A"))!=Error)
-    {
-        Lines.Separator_Set(0, __T("\x0D\x0A"));
-        Lines.Write(File);
-    }
-    else if (File.find(__T("\x0D"))!=Error)
-    {
-        Lines.Separator_Set(0, __T("\x0D"));
-        Lines.Write(File);
-    }
-    else if (File.find(__T("\x0A"))!=Error)
-    {
-        Lines.Separator_Set(0, __T("\x0A"));
-        Lines.Write(File);
-    }
-    else
-    {
-        Reject("Other text");
-        return;
-    }
-    if (Lines.size()<0x10)
-    {
-        Reject("Other text");
-        return;
-    }
+    File.FindAndReplace(__T("\r\n"), __T("\n"), 0, Ztring_Recursive);
+    File.FindAndReplace(__T("\r"), __T("\n"), 0, Ztring_Recursive);
+    Lines.Separator_Set(0, __T("\n"));
+    Lines.Write(File);
     Lines.resize(0x20);
 
-         if (Lines[0].size()==1
-          && Lines[0][0]==__T('1')
-          && Lines[1].size()==29
-          && Lines[1][ 0]==__T('0') && Lines[1][ 1]==__T('0')
-          && Lines[1][ 2]==__T(':') && Lines[1][ 5]==__T(':') && Lines[1][ 8]==__T(',')
-          && Lines[1][12]==__T(' ') && Lines[1][13]==__T('-') && Lines[1][14]==__T('-') && Lines[1][15]==__T('>') && Lines[1][16]==__T(' ')
-          && Lines[1][17]==__T('0') && Lines[1][18]==__T('0')
-          && Lines[1][19]==__T(':') && Lines[1][22]==__T(':') && Lines[1][25]==__T(',')
-          && Lines.Find(__T("2"))!=Error
-          )
-    {
-        Format=__T("SubRip");
-        Codec=__T("SubRip");
-    }
-    else if (Lines[0]==__T("[Script Info]")
-          && Lines.Find(__T("ScriptType: v4.00"))!=Error
+         if (Lines[0]==__T("[Script Info]")
+          && (Lines.Find(__T("ScriptType: v4.00"))!=Error || Lines.Find(__T("Script Type: V4.00"))!=Error)
           && Lines.Find(__T("[V4 Styles]"))!=Error
           )
     {
@@ -118,7 +77,7 @@ void File_OtherText::Read_Buffer_Continue()
        Codec=__T("SSA");
     }
     else if (Lines[0]==__T("[Script Info]")
-          && Lines.Find(__T("ScriptType: v4.00+"))!=Error
+          && (Lines.Find(__T("ScriptType: v4.00+"))!=Error || Lines.Find(__T("Script Type: V4.00+"))!=Error)
           && Lines.Find(__T("[V4+ Styles]"))!=Error
           )
     {
@@ -189,6 +148,10 @@ void File_OtherText::Read_Buffer_Continue()
     {
        Format=__T("CPC Captioning");
        Codec=__T("CPC Captioning");
+    }
+    else if (Lines[0].find(__T("<SAMI>"))==0)
+    {
+       Format=__T("SAMI");
     }
     else
         return;

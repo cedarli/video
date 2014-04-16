@@ -1,21 +1,8 @@
-// MediaInfo_CLI - A Command Line Interface for MediaInfoLib
-// Copyright (C) 2002-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this program. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 #include <vector>
@@ -93,7 +80,7 @@ void __stdcall Event_CallBackFunction(unsigned char* Data_Content, size_t Data_S
 
 
     //*Retrieving EventID
-    MediaInfo_int8u     ParserID    =(MediaInfo_int8u) ((Event_Generic->EventCode&0xFF000000)>>24);
+    //MediaInfo_int8u     ParserID    =(MediaInfo_int8u) ((Event_Generic->EventCode&0xFF000000)>>24);
     MediaInfo_int16u    EventID     =(MediaInfo_int16u)((Event_Generic->EventCode&0x00FFFF00)>>8 );
     MediaInfo_int8u     EventVersion=(MediaInfo_int8u) ( Event_Generic->EventCode&0x000000FF     );
 
@@ -112,7 +99,8 @@ void __stdcall Event_CallBackFunction(unsigned char* Data_Content, size_t Data_S
 int main(int argc, char* argv_ansi[])
 {
     //Localisation
-    setlocale(LC_ALL, """""");
+    setlocale(LC_ALL, "");
+    MediaInfo::Option_Static(__T("CharSet"), __T(""));
 
     //Initialize terminal (to fix Unicode output on Win32)
     #if defined(_MSC_VER) && defined(UNICODE)

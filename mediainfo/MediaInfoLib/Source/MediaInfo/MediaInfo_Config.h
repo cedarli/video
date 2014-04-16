@@ -1,20 +1,9 @@
-// MediaInfo_Config - Configuration class
-// Copyright (C) 2005-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 // Global configuration of MediaInfo
@@ -58,6 +47,7 @@ class MediaInfo_Config
 {
 public :
     //Constructor/Destructor
+    MediaInfo_Config() {}
     void Init(); //Must be called instead of constructor
 
     //General
@@ -156,7 +146,6 @@ public :
           Ztring    Inform_Get (const Ztring &Value);
 
           void      Inform_Replace_Set (const ZtringListList &NewInform_Replace);
-          Ztring    Inform_Replace_Get ();
           ZtringListList Inform_Replace_Get_All ();
 
     const Ztring   &Format_Get (const Ztring &Value, infoformat_t KindOfFormatInfo=InfoFormat_Name);
@@ -177,7 +166,7 @@ public :
     const Ztring   &Info_Get (stream_t KindOfStream, size_t Pos, info_t KindOfInfo=Info_Text);
     const ZtringListList &Info_Get(stream_t KindOfStream); //Should not be, but too difficult to hide it
 
-          Ztring    Info_Parameters_Get ();
+          Ztring    Info_Parameters_Get (bool Complete=false);
           Ztring    Info_Tags_Get       () const;
           Ztring    Info_CodecsID_Get   ();
           Ztring    Info_Codecs_Get     ();
@@ -307,7 +296,7 @@ private :
     Ztring          DecimalPoint;
     Ztring          ThousandsPoint;
     Translation     Language; //ex. : "KB;Ko"
-    ZtringListList  Custom_View; //Definition of "General", "Video", "Audio", "Text", "Chapters", "Image"
+    ZtringListList  Custom_View; //Definition of "General", "Video", "Audio", "Text", "Other", "Image"
     ZtringListList  Custom_View_Replace; //ToReplace;ReplaceBy
     trace_Format    Trace_Format;
 
@@ -348,6 +337,10 @@ private :
           Ztring    Ssl_CertificateRevocationListFileName;
           bool      Ssl_IgnoreSecurity;
     #endif //defined(MEDIAINFO_LIBCURL_YES)
+
+    //Constructor
+    MediaInfo_Config (const MediaInfo_Config&);             // Prevent copy-construction
+    MediaInfo_Config& operator=(const MediaInfo_Config&);   // Prevent assignment
 };
 
 extern MediaInfo_Config Config;

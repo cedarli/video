@@ -1,20 +1,9 @@
-// Core - Main functions
-// Copyright (C) 2002-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this program. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 // Core functions
@@ -62,8 +51,9 @@ public:
     void    Menu_View_HTML                  ();
     void    Menu_View_XML                   ();
     void    Menu_View_PBCore                ();
-    void    Menu_View_reVTMD           ();
+    void    Menu_View_reVTMD                ();
     void    Menu_View_MPEG7                 ();
+    void    Menu_View_EBUCore_1_4           ();
     void    Menu_View_Text                  ();
     void    Menu_Option_Preferences_Inform  (const MediaInfoNameSpace::String &Inform);
     String  Menu_Option_Preferences_Option  (const MediaInfoNameSpace::String &Param, const MediaInfoNameSpace::String &Value);
@@ -78,7 +68,7 @@ public:
 
     //Datas
     MediaInfoNameSpace::String &Inform_Get();
-    enum kind {Kind_Easy, Kind_Sheet, Kind_Tree, Kind_HTML, Kind_Text, Kind_XML, Kind_PBCore, Kind_reVTMD, Kind_MPEG7};
+    enum kind {Kind_Easy, Kind_Sheet, Kind_Tree, Kind_HTML, Kind_Text, Kind_XML, Kind_PBCore, Kind_reVTMD, Kind_MPEG7, Kind_EBUCore_1_4};
     kind    Kind_Get();
     MediaInfoNameSpace::String  Inform_Get          (size_t Pos, stream_t StreamKind, size_t StreamPos);
 

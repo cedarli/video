@@ -1,4 +1,0 @@
-Export_reVTMD.lo: ../../../Source/MediaInfo/Export/Export_reVTMD.cpp \
- ../../../Source/MediaInfo/PreComp.h
-
-../../../Source/MediaInfo/PreComp.h:

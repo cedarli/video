@@ -1,21 +1,8 @@
-// File_Scc - Info for SCC streams
-// Copyright (C) 2011-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -41,6 +28,41 @@
 
 namespace MediaInfoLib
 {
+
+//***************************************************************************
+// Utils
+//***************************************************************************
+
+int64u Scc_str2timecode(const char* Value)
+{
+    size_t Length=strlen(Value);
+         if (Length==11
+     && Value[0]>='0' && Value[0]<='9'
+     && Value[1]>='0' && Value[1]<='9'
+     && Value[2]==':'
+     && Value[3]>='0' && Value[3]<='9'
+     && Value[4]>='0' && Value[4]<='9'
+     && Value[5]==':'
+     && Value[6]>='0' && Value[6]<='9'
+     && Value[7]>='0' && Value[7]<='9'
+     && (Value[8]==':' || Value[8]==';')
+     && Value[9]>='0' && Value[9]<='9'
+     && Value[10]>='0' && Value[10]<='9')
+    {
+        int64u ToReturn=(int64u)(Value[0]-'0')*10*60*60*1000000000
+                       +(int64u)(Value[1]-'0')   *60*60*1000000000
+                       +(int64u)(Value[3]-'0')   *10*60*1000000000
+                       +(int64u)(Value[4]-'0')      *60*1000000000
+                       +(int64u)(Value[6]-'0')      *10*1000000000
+                       +(int64u)(Value[7]-'0')         *1000000000
+                       +(int64u)(Value[9]-'0')         * 333333333
+                       +(int64u)(Value[10]-'0')        *  33333333;
+
+        return ToReturn;
+    }
+    else
+        return (int64u)-1;
+}
 
 //***************************************************************************
 // Constructor/Destructor
@@ -69,6 +91,38 @@ File_Scc::~File_Scc()
 {
     delete Parser; //Parser=NULL;
 }
+
+//***************************************************************************
+// Buffer - Global
+//***************************************************************************
+
+//---------------------------------------------------------------------------
+#if MEDIAINFO_SEEK
+size_t File_Scc::Read_Buffer_Seek (size_t Method, int64u Value, int64u ID)
+{
+    GoTo(0);
+    Open_Buffer_Unsynch();
+    return 1;
+}
+#endif //MEDIAINFO_SEEK
+
+//---------------------------------------------------------------------------
+#if MEDIAINFO_SEEK
+void File_Scc::Read_Buffer_Unsynched()
+{
+    if (Parser)
+        Parser->Open_Buffer_Unsynch();
+}
+#endif //MEDIAINFO_SEEK
+
+//---------------------------------------------------------------------------
+#if MEDIAINFO_SEEK
+void File_Scc::Read_Buffer_AfterParsing()
+{
+    if (Parser && File_Offset+Buffer_Size==File_Size)
+         Parser->Open_Buffer_Unsynch();
+}
+#endif //MEDIAINFO_SEEK
 
 //***************************************************************************
 // Streams management
@@ -125,7 +179,7 @@ bool File_Scc::FileHeader_Begin()
      || Buffer[17]!=0x30
     )
     {
-        Reject("N19");
+        Reject("SCC");
         return false;
     }
 
@@ -195,7 +249,9 @@ void File_Scc::Data_Parse()
         return;
 
     //Parsing
-    Skip_String(11,                                             "TimeStamp");
+    string TimeStamp;
+    Get_String(11, TimeStamp,                                   "TimeStamp");
+    Parser->FrameInfo.DTS=Scc_str2timecode(TimeStamp.c_str());
     while (Element_Offset+5<=Element_Size)
     {
         int8u Buffer_Temp[2];
@@ -205,6 +261,8 @@ void File_Scc::Data_Parse()
                      | (Buffer[Buffer_Offset+(size_t)Element_Offset+4]-(Buffer[Buffer_Offset+(size_t)Element_Offset+4]>='a'?('a'-10):'0'));
         Open_Buffer_Continue(Parser, Buffer_Temp, 2);
         Element_Offset+=5;
+        if (Parser->FrameInfo.DTS!=(int64u)-1)
+            Parser->FrameInfo.DTS+=33333333;
     }
 }
 

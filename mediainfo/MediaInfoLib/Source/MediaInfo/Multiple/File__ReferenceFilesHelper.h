@@ -1,23 +1,8 @@
-// File__ReferenceFilesHelper - class for analyzing/demuxing reference files
-// Copyright (C) 2011-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 #ifndef File__ReferenceFilesHelperH
@@ -26,6 +11,7 @@
 
 //---------------------------------------------------------------------------
 #include "MediaInfo/File__Analyze.h"
+#include "MediaInfo/MediaInfo_Internal.h"
 #include <vector>
 //---------------------------------------------------------------------------
 
@@ -52,16 +38,47 @@ public :
         int64u              Delay;
         int64u              FileSize;
         bool                IsCircular;
+        bool                IsMain;
+        #if MEDIAINFO_ADVANCED || MEDIAINFO_MD5
+            bool            List_Compute_Done;
+        #endif //MEDIAINFO_ADVANCED || MEDIAINFO_MD5
         size_t              State;
         std::map<std::string, Ztring> Infos;
         MediaInfo_Internal* MI;
+        struct completeduration
+        {
+            Ztring FileName;
+            MediaInfo_Internal* MI;
+            #if MEDIAINFO_DEMUX
+                int64u Demux_Offset_Frame;
+                int64u Demux_Offset_DTS;
+                int64u Demux_Offset_FileSize;
+            #endif //MEDIAINFO_DEMUX
+
+            completeduration()
+            {
+                MI=NULL;
+                #if MEDIAINFO_DEMUX
+                    Demux_Offset_Frame=0;
+                    Demux_Offset_DTS=0;
+                    Demux_Offset_FileSize=0;
+                #endif //MEDIAINFO_DEMUX
+            }
+
+            ~completeduration()
+            {
+                delete MI;
+            }
+        };
+        vector<completeduration*>   CompleteDuration;
+        size_t                      CompleteDuration_Pos;
         #if MEDIAINFO_FILTER
             int64u          Enabled;
         #endif //MEDIAINFO_FILTER
-        #if MEDIAINFO_NEXTPACKET
-            std::bitset<32> Status;
-        ibi::stream         IbiStream;
-        #endif //MEDIAINFO_NEXTPACKET
+        std::bitset<32> Status;
+        #if MEDIAINFO_NEXTPACKET && MEDIAINFO_IBI
+            ibi::stream IbiStream;
+        #endif //MEDIAINFO_NEXTPACKET && MEDIAINFO_IBI
 
         reference()
         {
@@ -74,18 +91,35 @@ public :
             Delay=0;
             FileSize=(int64u)-1;
             IsCircular=false;
+            IsMain=false;
+            #if MEDIAINFO_ADVANCED || MEDIAINFO_MD5
+                List_Compute_Done=false;
+            #endif //MEDIAINFO_ADVANCED || MEDIAINFO_MD5
             State=0;
             MI=NULL;
+            CompleteDuration_Pos=0;
             #if MEDIAINFO_FILTER
                 Enabled=true;
             #endif //MEDIAINFO_FILTER
+        }
+
+        ~reference()
+        {
+            for (size_t Pos=0; Pos<CompleteDuration.size(); Pos++)
+                delete CompleteDuration[Pos]; //CompleteDuration[Pos]=NULL;
         }
     };
     typedef std::vector<reference>  references;
     references                      References;
     bool                            TestContinuousFileNames;
+    bool                            FilesForStorage;
+    bool                            ContainerHasNoId;
+    bool                            HasMainFile;
+    bool                            HasMainFile_Filled;
+    int64u                          ID_Max;
 
     //Streams management
+    bool ParseReference_Init();
     void ParseReferences();
 
     //Constructor / Destructor
@@ -126,9 +160,19 @@ private :
     //Helpers
     size_t Stream_Prepare(stream_t StreamKind, size_t StreamPos=(size_t)-1);
     void   FileSize_Compute();
+    MediaInfo_Internal* MI_Create();
+    #if MEDIAINFO_ADVANCED || MEDIAINFO_MD5
+        void   List_Compute();
+    #endif //MEDIAINFO_ADVANCED || MEDIAINFO_MD5
+    #if MEDIAINFO_EVENTS
+    void SubFile_Start();
+    int64u                          StreamID_Previous;
+    #endif //MEDIAINFO_EVENTS
+    #if MEDIAINFO_DEMUX
+        int64u                      Offset_Video_DTS;
+    #endif //MEDIAINFO_DEMUX
 };
 
 } //NameSpace
 
 #endif
-

@@ -115,9 +115,11 @@ AC_ARG_ENABLE(png,     AC_HELP_STRING([--disable-png],     [Disable Image - PNG]
 AC_ARG_ENABLE(psd,     AC_HELP_STRING([--disable-psd],     [Disable Image - PSD]),                                        MediaInfoPsd=$enableval,     MediaInfoPsd=depend)
 AC_ARG_ENABLE(rle,     AC_HELP_STRING([--disable-rle],     [Disable Image - Run-length encoding]),                        MediaInfoRle=$enableval,     MediaInfoRle=depend)
 AC_ARG_ENABLE(tiff,    AC_HELP_STRING([--disable-tiff],    [Disable Image - TIFF]),                                       MediaInfoTiff=$enableval,    MediaInfoTiff=depend)
+AC_ARG_ENABLE(aaf,     AC_HELP_STRING([--disable-aaf],     [Disable Multiple - AAF]),                                     MediaInfoAaf=$enableval,     MediaInfoAaf=depend)
 AC_ARG_ENABLE(bdav,    AC_HELP_STRING([--disable-bdav],    [Disable Multiple - Blu-ray audio-video (BDAV)]),              MediaInfoBdav=$enableval,    MediaInfoBdav=depend)
 AC_ARG_ENABLE(bdmv,    AC_HELP_STRING([--disable-bdmv],    [Disable Multiple - Blu-ray Movie]),                           MediaInfoBdmv=$enableval,    MediaInfoBdmv=depend)
 AC_ARG_ENABLE(cdxa,    AC_HELP_STRING([--disable-cdxa],    [Disable Multiple - CDXA (CD mode 2)]),                        MediaInfoCdxa=$enableval,    MediaInfoCdxa=depend)
+AC_ARG_ENABLE(dashmpd  AC_HELP_STRING([--disable-dashmpd], [Disable Multiple - DASH MPD]),                                MediaInfoDashMpd=$enableval, MediaInfoDashMpd=depend)
 AC_ARG_ENABLE(dcp,     AC_HELP_STRING([--disable-dcp],     [Disable Multiple - DCP]),                                     MediaInfoDcp=$enableval,     MediaInfoDcp=depend)
 AC_ARG_ENABLE(dpg,     AC_HELP_STRING([--disable-dpg],     [Disable Multiple - DPG (Nintendo DS)]),                       MediaInfoDpg=$enableval,     MediaInfoDpg=depend)
 AC_ARG_ENABLE(references, AC_HELP_STRING([--disable-references], [Disable Multiple - Reference files support]),           MediaInfoReferences=$enableval, MediaInfoReferences=depend)
@@ -126,6 +128,9 @@ AC_ARG_ENABLE(dvdif-analyze, AC_HELP_STRING([--enable-dvdif-analyze],   [Enable 
 AC_ARG_ENABLE(dvdv,    AC_HELP_STRING([--disable-dvdv],    [Disable Multiple - DVD-Video]),                               MediaInfoDvdv=$enableval,    MediaInfoDvdv=depend)
 AC_ARG_ENABLE(dxw,     AC_HELP_STRING([--disable-dxw],     [Disable Multiple - DXW]),                                     MediaInfoDxw=$enableval,     MediaInfoDxw=depend)
 AC_ARG_ENABLE(flv,     AC_HELP_STRING([--disable-flv],     [Disable Multiple - FLV (Flash video)]),                       MediaInfoFlv=$enableval,     MediaInfoFlv=depend)
+AC_ARG_ENABLE(gxf,     AC_HELP_STRING([--disable-gxf],     [Disable Multiple - GXF]),                                     MediaInfoGxf=$enableval,     MediaInfoGxf=depend)
+AC_ARG_ENABLE(hdsf4m,  AC_HELP_STRING([--disable-hdsf4m],  [Disable Multiple - HDS F4M (Flash Media Manifest)]),          MediaInfoHdsF4m=$enableval,  MediaInfoHdsf4m=depend)
+AC_ARG_ENABLE(hls,     AC_HELP_STRING([--disable-hls],     [Disable Multiple - HLS]),                                     MediaInfoHls=$enableval,     MediaInfoHls=depend)
 AC_ARG_ENABLE(mk,      AC_HELP_STRING([--disable-mk],      [Disable Multiple - Matroska]),                                MediaInfoMk=$enableval,      MediaInfoMk=depend)
 AC_ARG_ENABLE(mpeg4,   AC_HELP_STRING([--disable-mpeg4],   [Disable Multiple - MPEG-4 based formats (MOV, AAC...)]),      MediaInfoMpeg4=$enableval,   MediaInfoMpeg4=depend)
 AC_ARG_ENABLE(mpegps,  AC_HELP_STRING([--disable-mpegps],  [Disable Multiple - MPEG-PS]),                                 MediaInfoMpegPs=$enableval,  MediaInfoMpegPs=depend)
@@ -135,6 +140,7 @@ AC_ARG_ENABLE(mpegts-pestimestamp, AC_HELP_STRING([--disable-mpegts-pestimestamp
 AC_ARG_ENABLE(mxf,     AC_HELP_STRING([--disable-mxf],     [Disable Multiple - MXF]),                                     MediaInfoMxf=$enableval,     MediaInfoMxf=depend)
 AC_ARG_ENABLE(nut,     AC_HELP_STRING([--disable-nut],     [Disable Multiple - Nut]),                                     MediaInfoNut=$enableval,     MediaInfoNut=depend)
 AC_ARG_ENABLE(ogg,     AC_HELP_STRING([--disable-ogg],     [Disable Multiple - OGG (ogg, ogm)]),                          MediaInfoOgg=$enableval,     MediaInfoOgg=depend)
+AC_ARG_ENABLE(pmp,     AC_HELP_STRING([--disable-pmp],     [Disable Multiple - Playstation Portable (PMP)]),              MediaInfoPmp=$enableval,     MediaInfoPmp=depend)
 AC_ARG_ENABLE(riff,    AC_HELP_STRING([--disable-riff],    [Disable Multiple - RIFF based formats (AVI...)]),             MediaInfoRiff=$enableval,    MediaInfoRiff=depend)
 AC_ARG_ENABLE(rm,      AC_HELP_STRING([--disable-rm],      [Disable Multiple - Real Media]),                              MediaInfoRm=$enableval,      MediaInfoRm=depend)
 AC_ARG_ENABLE(skm,     AC_HELP_STRING([--disable-skm],     [Disable Multiple - SKM]),                                     MediaInfoSkm=$enableval,     MediaInfoSkm=depend)
@@ -148,17 +154,24 @@ AC_ARG_ENABLE(Lyrics3, AC_HELP_STRING([--disable-Lyrics3], [Disable Tag - Lyrics
 AC_ARG_ENABLE(Lyrics3v2, AC_HELP_STRING([--disable-Lyrics3v2], [Disable Tag - Lyrics3v2]),                                MediaInfoLyrics3v2=$enableval, MediaInfoLyrics3v2=depend)
 AC_ARG_ENABLE(VorbisCom, AC_HELP_STRING([--disable-VorbisCom], [Disable Tag - VorbisCom]),                                MediaInfoVorbisCom=$enableval, MediaInfoVorbisCom=depend)
 AC_ARG_ENABLE(cmml,    AC_HELP_STRING([--disable-cmml],    [Disable Text - CMML]),                                        MediaInfoCmml=$enableval,    MediaInfoCmml=depend)
-AC_ARG_ENABLE(dvbsubtitle,  AC_HELP_STRING([--disable-dvbSsubtitle],  [Disable Text - DVB Subtitle]),                     MediaInfoDvbSubtitle=$enableval,  MediaInfoDvbSubtitle=depend)
-AC_ARG_ENABLE(eia608,  AC_HELP_STRING([--disable-eia608],  [Disable Text - Closed captions (EIA-608)]),                   MediaInfoEia608=$enableval,  MediaInfo608=depend)
-AC_ARG_ENABLE(eia708,  AC_HELP_STRING([--disable-eia708],  [Disable Text - Closed captions (EIA-708)]),                   MediaInfoEia708=$enableval,  MediaInfo708=depend)
-AC_ARG_ENABLE(teletext,  AC_HELP_STRING([--disable-teletext],  [Disable Text - Teletext]),                                MediaInfoTeletext=$enableval,  MediaInfoTeletext=depend)
+AC_ARG_ENABLE(dvbsubtitle,  AC_HELP_STRING([--disable-dvbSsubtitle],  [Disable Text - DVB Subtitle]),                     MediaInfoDvbSubtitle=$enableval, MediaInfoDvbSubtitle=depend)
+AC_ARG_ENABLE(aribstdb24b37, AC_HELP_STRING([--disable-aribstdb24],  [Disable Text - Closed captions (ARIB STD B24/B37)]), MediaInfoaribstdb24b37=$enableval, MediaInfoaribstdb24b37=depend)
+AC_ARG_ENABLE(eia608,  AC_HELP_STRING([--disable-eia608],  [Disable Text - Closed captions (EIA-608)]),                   MediaInfoEia608=$enableval,  MediaInfoEia608=depend)
+AC_ARG_ENABLE(eia708,  AC_HELP_STRING([--disable-eia708],  [Disable Text - Closed captions (EIA-708)]),                   MediaInfoEia708=$enableval,  MediaInfoEia708=depend)
+AC_ARG_ENABLE(subrip,  AC_HELP_STRING([--disable-subrip],  [Disable Text - SubRip]),                                      MediaInfoSubRip=$enableval,  MediaInfoSubRip=depend)
+AC_ARG_ENABLE(teletext,  AC_HELP_STRING([--disable-teletext],  [Disable Text - Teletext]),                                MediaInfoTeletext=$enableval, MediaInfoTeletext=depend)
+AC_ARG_ENABLE(timedtext, AC_HELP_STRING([--disable-timedtext], [Disable Text - Timed Text (MPEG-4 Part 17)]),             MediaInfoTimedText=$enableval, MediaInfoTimedText=depend)
+AC_ARG_ENABLE(ttml,    AC_HELP_STRING([--disable-ttml],    [Disable Text - TTML]),                                        MediaInfoTtml=$enableval,    MediaInfoTtml=depend)
 AC_ARG_ENABLE(kate,    AC_HELP_STRING([--disable-kate],    [Disable Text - Kate]),                                        MediaInfoKate=$enableval,    MediaInfoKate=depend)
 AC_ARG_ENABLE(pgs,     AC_HELP_STRING([--disable-pgs] ,    [Disable Text - PGS]),                                         MediaInfoPgs=$enableval,     MediaInfoPgs=depend)
 AC_ARG_ENABLE(scc,     AC_HELP_STRING([--disable-scc] ,    [Disable Text - SCC]),                                         MediaInfoScc=$enableval,     MediaInfoScc=depend)
+AC_ARG_ENABLE(aic,     AC_HELP_STRING([--disable-aic],     [Disable Video - AIC (Apple Intermediate Codec)]),             MediaInfoAic=$enableval,     MediaInfoAic=depend)
 AC_ARG_ENABLE(avc,     AC_HELP_STRING([--disable-avc],     [Disable Video - AVC/H264]),                                   MediaInfoAvc=$enableval,     MediaInfoAvc=depend)
 AC_ARG_ENABLE(avsV,    AC_HELP_STRING([--disable-avsv],    [Disable Video - AVS (Chinese)]),                              MediaInfoAvsV=$enableval,    MediaInfoAvsV=depend)
+AC_ARG_ENABLE(canopus, AC_HELP_STRING([--disable-canopus], [Disable Video - Canopus]),                                    MediaInfoCanopus=$enableval, MediaInfoCanopus=depend)
 AC_ARG_ENABLE(flic,    AC_HELP_STRING([--disable-flic],    [Disable Video - FLIC (fli, flc)]),                            MediaInfoFlic=$enableval,    MediaInfoFlic=depend)
 AC_ARG_ENABLE(h263,    AC_HELP_STRING([--disable-h263],    [Disable Video - H.263]),                                      MediaInfoH263=$enableval,    MediaInfoH263=depend)
+AC_ARG_ENABLE(hevc,    AC_HELP_STRING([--disable-hevc],    [Disable Video - HEVC/H265]),                                  MediaInfoHevc=$enableval,    MediaInfoHevc=depend)
 AC_ARG_ENABLE(mpeg4v,  AC_HELP_STRING([--disable-mpeg4v],  [Disable Video - MPEG-4 Video based formats (DivX, XviD...)]), MediaInfoMpeg4v=$enableval,  MediaInfoMpeg4v=depend)
 AC_ARG_ENABLE(mpegv,   AC_HELP_STRING([--disable-mpegv],   [Disable Video - MPEG-Video]),                                 MediaInfoMpegv=$enableval,   MediaInfoMpegv=depend)
 AC_ARG_ENABLE(prores,  AC_HELP_STRING([--disable-prores],  [Disable Video - ProRes]),                                     MediaInfoProRes=$enableval,  MediaInfoProRes=depend)
@@ -176,6 +189,7 @@ AC_ARG_WITH(macosx-version-min, AC_HELP_STRING([--with-macosx-version-min], [For
 AC_ARG_WITH(libz_static,        AC_HELP_STRING([--with-libz-static],        [Use static version of Zlib]),                , with_libz_static=no)
 AC_ARG_WITH(libcurl,            AC_HELP_STRING([--with-libcurl],            [Use libcurl (specific directory)]),          , with_libcurl=no)
 AC_ARG_WITH(libmms,             AC_HELP_STRING([--with-libmms],             [Use libmms (specific directory)]),           , with_libmms=no)
+AC_ARG_WITH(libmd5,             AC_HELP_STRING([--with-libmd5],             [Use libmd5 (system)]),                       , with_libmd5=depend)
 AC_ARG_WITH(libtinyxml2,        AC_HELP_STRING([--with-libtinyxml2],        [Use libtinyxml2 (system)]),                  , with_libtinyxml2=depend)
 AC_ARG_WITH(libmediainfo-name,  AC_HELP_STRING([--with-libmediainfo-name],  [Force libmediainfo filename]),               , with_libmediainfo_name=mediainfo)
 
@@ -245,9 +259,11 @@ if test "$MediaInfoPcx"     = "no";  then AC_DEFINE(MEDIAINFO_PCX_NO)     fi; if
 if test "$MediaInfoPng"     = "no";  then AC_DEFINE(MEDIAINFO_PNG_NO)     fi; if test "$MediaInfoPng"     = "yes"; then AC_DEFINE(MEDIAINFO_PNG_YES)     fi
 if test "$MediaInfoPsd"     = "no";  then AC_DEFINE(MEDIAINFO_PSD_NO)     fi; if test "$MediaInfoPsd"     = "yes"; then AC_DEFINE(MEDIAINFO_PSD_YES)     fi
 if test "$MediaInfoTiff"    = "no";  then AC_DEFINE(MEDIAINFO_TIFF_NO)    fi; if test "$MediaInfoTiff"    = "yes"; then AC_DEFINE(MEDIAINFO_TIFF_YES)    fi
+if test "$MediaInfoAaf"     = "no";  then AC_DEFINE(MEDIAINFO_AAF_NO)     fi; if test "$MediaInfoAaf"     = "yes"; then AC_DEFINE(MEDIAINFO_AAF_YES)     fi
 if test "$MediaInfoBdav"    = "no";  then AC_DEFINE(MEDIAINFO_BDAV_NO)    fi; if test "$MediaInfoBdav"    = "yes"; then AC_DEFINE(MEDIAINFO_BDAV_YES)    fi
 if test "$MediaInfoBdmv"    = "no";  then AC_DEFINE(MEDIAINFO_BDMV_NO)    fi; if test "$MediaInfoBdmv"    = "yes"; then AC_DEFINE(MEDIAINFO_BDMV_YES)    fi
 if test "$MediaInfoCdxa"    = "no";  then AC_DEFINE(MEDIAINFO_CDXA_NO)    fi; if test "$MediaInfoCdxa"    = "yes"; then AC_DEFINE(MEDIAINFO_CDXA_YES)    fi
+if test "$MediaInfoDashMpd" = "no";  then AC_DEFINE(MEDIAINFO_DASHMPD_NO) fi; if test "$MediaInfoDashMpd" = "yes"; then AC_DEFINE(MEDIAINFO_DASHMPD_YES) fi
 if test "$MediaInfoDcp"     = "no";  then AC_DEFINE(MEDIAINFO_DCP_NO)     fi; if test "$MediaInfoDcp"     = "yes"; then AC_DEFINE(MEDIAINFO_DCP_YES)     fi
 if test "$MediaInfoDpg"     = "no";  then AC_DEFINE(MEDIAINFO_DPG_NO)     fi; if test "$MediaInfoDpg"     = "yes"; then AC_DEFINE(MEDIAINFO_DPG_YES)     fi
 if test "$MediaInfoReferences" = "no";  then AC_DEFINE(MEDIAINFO_REFERENCES_NO)   fi; if test "$MediaInfoReferences" = "yes"; then AC_DEFINE(MEDIAINFO_REFERENCES_YES)   fi
@@ -256,6 +272,9 @@ if test "$MediaInfoDvDifAnalyze" = "no";  then AC_DEFINE(MEDIAINFO_DVDIF_ANALYZE
 if test "$MediaInfoDvdv"    = "no";  then AC_DEFINE(MEDIAINFO_DVDV_NO)    fi; if test "$MediaInfoDvdv"    = "yes"; then AC_DEFINE(MEDIAINFO_DVDV_YES)    fi
 if test "$MediaInfoDxw"     = "no";  then AC_DEFINE(MEDIAINFO_DXW_NO)     fi; if test "$MediaInfoDxw"     = "yes"; then AC_DEFINE(MEDIAINFO_DXW_YES)     fi
 if test "$MediaInfoFlv"     = "no";  then AC_DEFINE(MEDIAINFO_FLV_NO)     fi; if test "$MediaInfoFlv"     = "yes"; then AC_DEFINE(MEDIAINFO_FLV_YES)     fi
+if test "$MediaInfoGxf"     = "no";  then AC_DEFINE(MEDIAINFO_GXF_NO)     fi; if test "$MediaInfoGxf"     = "yes"; then AC_DEFINE(MEDIAINFO_GXF_YES)     fi
+if test "$MediaInfohdsF4m"  = "no";  then AC_DEFINE(MEDIAINFO_HDSF4M_NO)  fi; if test "$MediaInfoHdsF4m"  = "yes"; then AC_DEFINE(MEDIAINFO_HDSF4M_YES)  fi
+if test "$MediaInfoHls"     = "no";  then AC_DEFINE(MEDIAINFO_HLS_NO)     fi; if test "$MediaInfoHls"     = "yes"; then AC_DEFINE(MEDIAINFO_HLS_YES)     fi
 if test "$MediaInfoMk"      = "no";  then AC_DEFINE(MEDIAINFO_MK_NO)      fi; if test "$MediaInfoMk"      = "yes"; then AC_DEFINE(MEDIAINFO_MK_YES)      fi
 if test "$MediaInfoMpeg4"   = "no";  then AC_DEFINE(MEDIAINFO_MPEG4_NO)   fi; if test "$MediaInfoMpeg4"   = "yes"; then AC_DEFINE(MEDIAINFO_MPEG4_YES)   fi
 if test "$MediaInfoMpegPs"  = "no";  then AC_DEFINE(MEDIAINFO_MPEGPS_NO)  fi; if test "$MediaInfoMpegPs"  = "yes"; then AC_DEFINE(MEDIAINFO_MPEGPS_YES)  fi
@@ -265,6 +284,7 @@ if test "$MediaInfoMpegTsPesTimeStamp" = "no"; then AC_DEFINE(MEDIAINFO_MPEGTS_P
 if test "$MediaInfoMxf"     = "no";  then AC_DEFINE(MEDIAINFO_MXF_NO)     fi; if test "$MediaInfoMxf"     = "yes"; then AC_DEFINE(MEDIAINFO_MXF_YES)     fi
 if test "$MediaInfoNut"     = "no";  then AC_DEFINE(MEDIAINFO_NUT_NO)     fi; if test "$MediaInfoNut"     = "yes"; then AC_DEFINE(MEDIAINFO_NUT_YES)     fi
 if test "$MediaInfoOgg"     = "no";  then AC_DEFINE(MEDIAINFO_OGG_NO)     fi; if test "$MediaInfoOgg"     = "yes"; then AC_DEFINE(MEDIAINFO_OGG_YES)     fi
+if test "$MediaInfoPmp"     = "no";  then AC_DEFINE(MEDIAINFO_PMP_NO)     fi; if test "$MediaInfoPmp"     = "yes"; then AC_DEFINE(MEDIAINFO_PMP_YES)     fi
 if test "$MediaInfoRiff"    = "no";  then AC_DEFINE(MEDIAINFO_RIFF_NO)    fi; if test "$MediaInfoRiff"    = "yes"; then AC_DEFINE(MEDIAINFO_RIFF_YES)    fi
 if test "$MediaInfoRm"      = "no";  then AC_DEFINE(MEDIAINFO_RM_NO)      fi; if test "$MediaInfoRm"      = "yes"; then AC_DEFINE(MEDIAINFO_RM_YES)      fi
 if test "$MediaInfoSkm"     = "no";  then AC_DEFINE(MEDIAINFO_SKM_NO)     fi; if test "$MediaInfoSkm"     = "yes"; then AC_DEFINE(MEDIAINFO_SKM_YES)     fi
@@ -278,17 +298,24 @@ if test "$MediaInfoLyrics3" = "no";  then AC_DEFINE(MEDIAINFO_LYRICS3_NO) fi; if
 if test "$MediaInfoLyrics3v2" = "no";  then AC_DEFINE(MEDIAINFO_LYRICS3V2_NO) fi; if test "$MediaInfoLyrics3v2" = "yes"; then AC_DEFINE(MEDIAINFO_LYRICS3V2_YES) fi
 if test "$MediaInfoVorbisCom" = "no";  then AC_DEFINE(MEDIAINFO_VORBISCOM_NO) fi; if test "$MediaInfoVorbisCom" = "yes"; then AC_DEFINE(MEDIAINFO_VORBISCOM_YES) fi
 if test "$MediaInfoCmml"    = "no";  then AC_DEFINE(MEDIAINFO_CMML_NO)    fi; if test "$MediaInfoCmml"    = "yes"; then AC_DEFINE(MEDIAINFO_CMML_YES)    fi
-if test "$MediaInfoDvbSubtitle"  = "no";  then AC_DEFINE(MEDIAINFO_DVBSUBTITLE_NO)  fi; if test "$MediaInfoDvbSubtitle"  = "yes"; then AC_DEFINE(MEDIAINFO_DVBSUBTITLE_YES)  fi
+if test "$MediaInfoDvbSubtitle" = "no"; then AC_DEFINE(MEDIAINFO_DVBSUBTITLE_NO) fi; if test "$MediaInfoDvbSubtitle" = "yes"; then AC_DEFINE(MEDIAINFO_DVBSUBTITLE_YES)  fi
+if test "$MediaInfoaribstdb24b37" = "no"; then AC_DEFINE(MEDIAINFO_ARIBSTDB24B37_NO) fi; if test "$MediaInfoaribstdb24b37" = "yes"; then AC_DEFINE(MEDIAINFO_ARIBSTDB24B37_YES) fi
 if test "$MediaInfoEia608"  = "no";  then AC_DEFINE(MEDIAINFO_EIA608_NO)  fi; if test "$MediaInfoEia608"  = "yes"; then AC_DEFINE(MEDIAINFO_EIA608_YES)  fi
 if test "$MediaInfoEia708"  = "no";  then AC_DEFINE(MEDIAINFO_EIA708_NO)  fi; if test "$MediaInfoEia708"  = "yes"; then AC_DEFINE(MEDIAINFO_EIA708_YES)  fi
-if test "$MediaInfoTeletext"  = "no";  then AC_DEFINE(MEDIAINFO_TELETEXT_NO)  fi; if test "$MediaInfoTeletext"  = "yes"; then AC_DEFINE(MEDIAINFO_TELETEXT_YES)  fi
+if test "$MediaInfoSubRip"  = "no";  then AC_DEFINE(MEDIAINFO_SUBRIP_NO)  fi; if test "$MediaInfoSubRip"  = "yes"; then AC_DEFINE(MEDIAINFO_SUBRIP_YES) fi
+if test "$MediaInfoTeletext" = "no";  then AC_DEFINE(MEDIAINFO_TELETEXT_NO) fi; if test "$MediaInfoTeletext" = "yes"; then AC_DEFINE(MEDIAINFO_TELETEXT_YES) fi
+if test "$MediaInfoTimedText" = "no";  then AC_DEFINE(MEDIAINFO_TIMEDTEXT_NO)    fi; if test "$MediaInfoTimedText"  = "yes"; then AC_DEFINE(MEDIAINFO_TIMEDTEXT_YES) fi
+if test "$MediaInfoTtml"    = "no";  then AC_DEFINE(MEDIAINFO_TTML_NO)    fi; if test "$MediaInfoTtml"    = "yes"; then AC_DEFINE(MEDIAINFO_TTML_YES) fi
 if test "$MediaInfoKate"    = "no";  then AC_DEFINE(MEDIAINFO_KATE_NO)    fi; if test "$MediaInfoKate"    = "yes"; then AC_DEFINE(MEDIAINFO_KATE_YES)    fi
 if test "$MediaInfoPgs"     = "no";  then AC_DEFINE(MEDIAINFO_PGS_NO)     fi; if test "$MediaInfoPgs"     = "yes"; then AC_DEFINE(MEDIAINFO_PGS_YES)     fi
 if test "$MediaInfoScc"     = "no";  then AC_DEFINE(MEDIAINFO_PGS_NO)     fi; if test "$MediaInfoScc"     = "yes"; then AC_DEFINE(MEDIAINFO_PGS_YES)     fi
+if test "$MediaInfoAic"     = "no";  then AC_DEFINE(MEDIAINFO_AIC_NO)     fi; if test "$MediaInfoAic"     = "yes"; then AC_DEFINE(MEDIAINFO_AIC_YES)     fi
 if test "$MediaInfoAvc"     = "no";  then AC_DEFINE(MEDIAINFO_AVC_NO)     fi; if test "$MediaInfoAvc"     = "yes"; then AC_DEFINE(MEDIAINFO_AVC_YES)     fi
 if test "$MediaInfoAvsV"    = "no";  then AC_DEFINE(MEDIAINFO_AVSV_NO)    fi; if test "$MediaInfoAvsV"    = "yes"; then AC_DEFINE(MEDIAINFO_AVSV_YES)    fi
+if test "$MediaInfoCanopus" = "no";  then AC_DEFINE(MEDIAINFO_CANOPUS_NO) fi; if test "$MediaInfoCanopus" = "yes"; then AC_DEFINE(MEDIAINFO_CANOPUS_YES) fi
 if test "$MediaInfoFlic"    = "no";  then AC_DEFINE(MEDIAINFO_FLIC_NO)    fi; if test "$MediaInfoFlic"    = "yes"; then AC_DEFINE(MEDIAINFO_FLIC_YES)    fi
 if test "$MediaInfoH263"    = "no";  then AC_DEFINE(MEDIAINFO_H263_NO)    fi; if test "$MediaInfoH263"    = "yes"; then AC_DEFINE(MEDIAINFO_H263_YES)    fi
+if test "$MediaInfoHevc"    = "no";  then AC_DEFINE(MEDIAINFO_HEVC_NO)    fi; if test "$MediaInfoHevc"    = "yes"; then AC_DEFINE(MEDIAINFO_Hevc_YES)    fi
 if test "$MediaInfoMpeg4v"  = "no";  then AC_DEFINE(MEDIAINFO_MPEG4V_NO)  fi; if test "$MediaInfoMpeg4v"  = "yes"; then AC_DEFINE(MEDIAINFO_MPEG4V_YES)  fi
 if test "$MediaInfoMpegv"   = "no";  then AC_DEFINE(MEDIAINFO_MPEGV_NO)   fi; if test "$MediaInfoMpegv"   = "yes"; then AC_DEFINE(MEDIAINFO_MPEGV_YES)   fi
 if test "$MediaInfoProRes"  = "no";  then AC_DEFINE(MEDIAINFO_PRORES_NO)  fi; if test "$MediaInfoProRes"  = "yes"; then AC_DEFINE(MEDIAINFO_PRORES_YES)  fi
@@ -307,7 +334,7 @@ dnl Unicode
 dnl
 if test -e ../../../../ZenLib/Project/GNU/Library/libzen-config; then
 	enable_unicode="$(../../../../ZenLib/Project/GNU/Library/libzen-config Unicode)"
-elif test "$(libzen-config Exists)" = "yes" ; then
+elif test "$(command -v libzen-config)" ; then
 	enable_unicode="$(libzen-config Unicode)"
 else
 	if pkg-config --exists libzen; then
@@ -377,7 +404,7 @@ if test -e ../../../../ZenLib/Project/GNU/Library/libzen.la; then
 		MediaInfoLib_LIBS="$MediaInfoLib_LIBS $(../../../../ZenLib/Project/GNU/Library/libzen-config LIBS)"
 		MediaInfoLib_LIBS_Static="$MediaInfoLib_LIBS_Static $(../../../../ZenLib/Project/GNU/Library/libzen-config LIBS)"
 	fi
-elif test "$(libzen-config Exists)" = "yes" ; then
+elif test "$(command -v libzen-config)" ; then
 	CXXFLAGS="$CXXFLAGS $(libzen-config CXXFLAGS)"
 	if test "$enable_staticlibs" = "yes"; then
 		with_zenlib="system (static)"
@@ -534,6 +561,25 @@ elif pkg-config --exists libmms; then
 else
 	CXXFLAGS="$CXXFLAGS -DMEDIAINFO_LIBMMS_NO"
 	using_libmms="not found"
+fi
+
+dnl -------------------------------------------------------------------------
+dnl libmd5
+dnl
+if test "$with_libmd5" = "yes"; then
+	PKG_CHECK_MODULES([MD5], [md5])
+	CXXFLAGS="$CXXFLAGS $MD5_CXXFLAGS"
+	CFLAGS="$CFLAGS $MD5_CFLAGS"
+	MediaInfoLib_CFLAGS="$MediaInfoLib_CFLAGS $MD5_CFLAGS"
+	LIBS="$LIBS $MD5_LIBS"
+	MediaInfoLib_LIBS="$MediaInfoLib_LIBS $MD5_LIBS"
+	AM_CONDITIONAL(COMPILE_MD5, false)
+	using_libmd5="system"
+else
+	CXXFLAGS="$CXXFLAGS -I../../../Source/ThirdParty/md5"
+	CFLAGS="$CFLAGS -I../../../Source/ThirdParty/md5"
+	using_libmd5="internal"
+	AM_CONDITIONAL(COMPILE_MD5, true)
 fi
 
 dnl -------------------------------------------------------------------------
@@ -716,7 +762,8 @@ echo "  Using ZenLib?                                           $with_zenlib"
 echo "  Using libcurl?                                          $using_libcurl"
 echo "  Using libmms?                                           $using_libmms"
 echo "  Using zlib?                                             $with_zlib"
-echo "  Using tinyxml2?                                          $using_libtinyxml2"
+echo "  Using md5?                                              $using_libmd5"
+echo "  Using tinyxml2?                                         $using_libtinyxml2"
 echo ""
 echo "  Create static lib?                                      $enable_static"
 echo "  Create shared lib?                                      $enable_shared"
@@ -780,9 +827,11 @@ Mcho "Pcx    " "$MediaInfoPcx"
 Mcho "Png    " "$MediaInfoPng"
 Mcho "Psd    " "$MediaInfoPsd"
 Mcho "Tiff   " "$MediaInfoTiff"
+Mcho "Aaf    " "$MediaInfoAaf"
 Mcho "Bdav   " "$MediaInfoBdav"
 Mcho "Bdmv   " "$MediaInfoBdmv"
 Mcho "Cdxa   " "$MediaInfoCdxa"
+Mcho "DASH   " "$MediaInfoDashMpd"
 Mcho "Dcp    " "$MediaInfoDcp"
 Mcho "Dpg    " "$MediaInfoDpg"
 Mcho "References" "$References"
@@ -790,6 +839,9 @@ Mcho "DvDif  " "$MediaInfoDvDif"
 Mcho "DvDifAnalyze" "$MediaInfoDvDifAnalyze"
 Mcho "Dvdv   " "$MediaInfoDvdv"
 Mcho "Dxw    " "$MediaInfoFlv"
+Mcho "Gxf "  "$MediaInfoHdsGxf"
+Mcho "HdsF4m " "$MediaInfoHdsF4m"
+Mcho "Hls    " "$MediaInfoHls"
 Mcho "Flv    " "$MediaInfoFlv"
 Mcho "Mk     " "$MediaInfoMk"
 Mcho "Mpeg4  " "$MediaInfoMpeg4"
@@ -800,12 +852,13 @@ Mcho "MpegTs (Parser time stamp)" "$MediaInfoMpegTsPesTimeStamp"
 Mcho "Mxf    " "$MediaInfoMxf"
 Mcho "Nut    " "$MediaInfoNut"
 Mcho "Ogg    " "$MediaInfoOgg"
+Mcho "Pmp    " "$MediaInfoPmp"
 Mcho "Riff   " "$MediaInfoRiff"
 Mcho "Rm     " "$MediaInfoRm"
 Mcho "Skm    " "$MediaInfoSkm"
 Mcho "Swf    " "$MediaInfoSwf"
 Mcho "Tsp    " "$MediaInfoTsp"
-Mcho "Mxf    " "$MediaInfoWm"
+Mcho "Wm     " "$MediaInfoWm"
 Mcho "ApeTag " "$MediaInfoApeTag"
 Mcho "Id3    " "$MediaInfoId3"
 Mcho "Id3v2  " "$MediaInfoId3v2"
@@ -816,14 +869,20 @@ Mcho "Cmml   " "$MediaInfoCmml"
 Mcho "DvbSubtitle " "$MediaInfoDvbSubtitle"
 Mcho "Eia608 " "$MediaInfoEia608"
 Mcho "Eia708 " "$MediaInfoEia708"
+Mcho "SubRip " "$MediaInfoSubRip"
 Mcho "Teletext " "$MediaInfoTeletext"
+Mcho "TimedText " "$MediaInfoTimedText"
+Mcho "Ttml   " "$MediaInfoTtml"
 Mcho "Kate   " "$MediaInfoKate"
 Mcho "Pgs    " "$MediaInfoPgs"
 Mcho "Scc    " "$MediaInfoScc"
+Mcho "Aic    " "$MediaInfoAic"
 Mcho "Avc    " "$MediaInfoAvc"
 Mcho "AvsV   " "$MediaInfoAvsV"
+Mcho "Canopus" "$MediaInfoCanopus"
 Mcho "Flic   " "$MediaInfoFlic"
 Mcho "H263   " "$MediaInfoH263"
+Mcho "Hevc   " "$MediaInfoHevc"
 Mcho "Mpeg4v " "$MediaInfoMpeg4v"
 Mcho "Mpegv  " "$MediaInfoMpegv"
 Mcho "ProRes " "$MediaInfoProRes"

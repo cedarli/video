@@ -1,21 +1,8 @@
-// MediaInfo_Events -
-// Copyright (C) 2010-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 /*Structures for MediaInfo events */
 
@@ -332,6 +319,8 @@ struct MediaInfo_Event_General_Start_0
 {
     MEDIAINFO_EVENT_GENERIC
     MediaInfo_int64u        Stream_Size;
+    const char*             FileName;
+    const wchar_t*          FileName_Unicode;
 };
 
 /*-------------------------------------------------------------------------*/
@@ -390,6 +379,12 @@ struct MediaInfo_Event_General_SubFile_End_0
 {
     MEDIAINFO_EVENT_GENERIC
 };
+
+/***************************************************************************/
+/* MPEG-TS / BDAV / TSP                                                    */
+/***************************************************************************/
+
+#define MediaInfo_Parser_SideCar        0x72
 
 /***************************************************************************/
 /* MPEG-TS / BDAV / TSP                                                    */
@@ -504,6 +499,54 @@ struct MediaInfo_Event_DvDif_Analysis_Frame_0
 #define MediaInfo_Parser_Ism            0x62
 
 /***************************************************************************/
+/* DASH MPD                                                                */
+/***************************************************************************/
+
+#define MediaInfo_Parser_DashMpd        0x63
+
+/***************************************************************************/
+/* HDS F4M                                                                 */
+/***************************************************************************/
+
+#define MediaInfo_Parser_HdsF4m         0x64
+
+/***************************************************************************/
+/* DCP Composition Asset Map                                               */
+/***************************************************************************/
+
+#define MediaInfo_Parser_DcpAm          0x65
+
+/***************************************************************************/
+/* DCP Composition Playlist                                                */
+/***************************************************************************/
+
+#define MediaInfo_Parser_DcpCpl         0x66
+
+/***************************************************************************/
+/* DCP Package List                                                        */
+/***************************************************************************/
+
+#define MediaInfo_Parser_DcpPkl         0x67
+
+/***************************************************************************/
+/* DCP Output List                                                        */
+/***************************************************************************/
+
+#define MediaInfo_Parser_DcpOpl         0x68
+
+/***************************************************************************/
+/* Pro Tools session 10                                                    */
+/***************************************************************************/
+
+#define MediaInfo_Parser_Ptx            0x69
+
+/***************************************************************************/
+/* AAF                                                                     */
+/***************************************************************************/
+
+#define MediaInfo_Parser_Aaf            0x6A
+
+/***************************************************************************/
 /* MPEG Video                                                              */
 /***************************************************************************/
 
@@ -514,6 +557,12 @@ struct MediaInfo_Event_DvDif_Analysis_Frame_0
 /***************************************************************************/
 
 #define MediaInfo_Parser_Avc            0x81
+
+/***************************************************************************/
+/* AVC                                                                     */
+/***************************************************************************/
+
+#define MediaInfo_Parser_Hevc            0x83
 
 /***************************************************************************/
 /* VC-1                                                                    */
@@ -641,5 +690,29 @@ struct MediaInfo_Event_DvDif_Analysis_Frame_0
 /***************************************************************************/
 
 #define MediaInfo_Parser_Scc            0xF8
+
+/***************************************************************************/
+/* ARIB STD B24/B37                                                        */
+/***************************************************************************/
+
+#define MediaInfo_Parser_AribStdB24B37  0xF9
+
+/***************************************************************************/
+/* TTML                                                                    */
+/***************************************************************************/
+
+#define MediaInfo_Parser_Ttml           0xFA
+
+/***************************************************************************/
+/* SubRip                                                                  */
+/***************************************************************************/
+
+#define MediaInfo_Parser_SubRip         0xFB
+
+/***************************************************************************/
+/* N19                                                                     */
+/***************************************************************************/
+
+#define MediaInfo_Parser_N19            0xFC
 
 #endif //MediaInfo_EventsH

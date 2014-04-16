@@ -1,20 +1,9 @@
-// MediaInfo_Config_MediaInfo - Configuration class
-// Copyright (C) 2005-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 // Configuration of MediaInfo (per MediaInfo block)
@@ -76,6 +65,9 @@ public :
     void          File_IsReferenced_Set (bool NewValue);
     bool          File_IsReferenced_Get ();
 
+    void          File_TestContinuousFileNames_Set (bool NewValue);
+    bool          File_TestContinuousFileNames_Get ();
+
     void          File_KeepInfo_Set (bool NewValue);
     bool          File_KeepInfo_Get ();
 
@@ -93,6 +85,43 @@ public :
 
     void          File_ID_OnlyRoot_Set (bool NewValue);
     bool          File_ID_OnlyRoot_Get ();
+
+    #if MEDIAINFO_ADVANCED
+        void          File_IgnoreSequenceFileSize_Set (bool NewValue);
+        bool          File_IgnoreSequenceFileSize_Get ();
+    #endif //MEDIAINFO_ADVANCED
+
+    #if MEDIAINFO_ADVANCED
+        void          File_DefaultFrameRate_Set (float64 NewValue);
+        float64       File_DefaultFrameRate_Get ();
+    #endif //MEDIAINFO_ADVANCED
+
+    #if MEDIAINFO_ADVANCED
+        void          File_Source_List_Set (bool NewValue);
+        bool          File_Source_List_Get ();
+    #endif //MEDIAINFO_ADVANCED
+
+    #if MEDIAINFO_ADVANCED
+        void          File_RiskyBitRateEstimation_Set (bool NewValue);
+        bool          File_RiskyBitRateEstimation_Get ();
+    #endif //MEDIAINFO_ADVANCED
+
+    #if MEDIAINFO_DEMUX
+        #if MEDIAINFO_ADVANCED
+            void          File_Demux_Unpacketize_StreamLayoutChange_Skip_Set (bool NewValue);
+            bool          File_Demux_Unpacketize_StreamLayoutChange_Skip_Get ();
+        #endif //MEDIAINFO_ADVANCED
+    #endif //MEDIAINFO_DEMUX
+
+    #if MEDIAINFO_MD5
+        void          File_Md5_Set (bool NewValue);
+        bool          File_Md5_Get ();
+    #endif //MEDIAINFO_MD5
+
+    #if defined(MEDIAINFO_REFERENCES_YES)
+        void          File_CheckSideCarFiles_Set (bool NewValue);
+        bool          File_CheckSideCarFiles_Get ();
+    #endif //defined(MEDIAINFO_REFERENCES_YES)
 
     void          File_FileName_Set (const Ztring &NewValue);
     Ztring        File_FileName_Get ();
@@ -123,6 +152,8 @@ public :
     void          File_Filter_Set     (int64u NewValue);
     bool          File_Filter_Get     (const int16u  Value);
     bool          File_Filter_Get     ();
+    void          File_Filter_Audio_Set (bool NewValue);
+    bool          File_Filter_Audio_Get ();
     bool          File_Filter_HasChanged();
     #endif //MEDIAINFO_FILTER
 
@@ -156,6 +187,7 @@ public :
     Ztring        Event_CallBackFunction_Get ();
     void          Event_Send(File__Analyze* Source, const int8u* Data_Content, size_t Data_Size, const Ztring &File_Name=Ztring());
     void          Event_Accepted(File__Analyze* Source);
+    void          Event_SubFile_Start(const Ztring &FileName_Absolute);
     #endif //MEDIAINFO_EVENTS
 
     #if MEDIAINFO_DEMUX
@@ -163,6 +195,10 @@ public :
     bool          Demux_ForceIds_Get ();
     void          Demux_PCM_20bitTo16bit_Set (bool NewValue);
     bool          Demux_PCM_20bitTo16bit_Get ();
+    void          Demux_PCM_20bitTo24bit_Set (bool NewValue);
+    bool          Demux_PCM_20bitTo24bit_Get ();
+    void          Demux_Avc_Transcode_Iso14496_15_to_Iso14496_10_Set (bool NewValue);
+    bool          Demux_Avc_Transcode_Iso14496_15_to_Iso14496_10_Get ();
     void          Demux_Unpacketize_Set (bool NewValue);
     bool          Demux_Unpacketize_Get ();
     void          Demux_Rate_Set (float64 NewValue);
@@ -180,6 +216,8 @@ public :
     std::string   Ibi_Get ();
     void          Ibi_Create_Set (bool NewValue);
     bool          Ibi_Create_Get ();
+    void          Ibi_UseIbiInfoIfAvailable_Set (bool NewValue);
+    bool          Ibi_UseIbiInfoIfAvailable_Get ();
     #endif //MEDIAINFO_IBI
 
     //Specific
@@ -247,8 +285,15 @@ public :
     int64u        File_Current_Size;
     int64u        File_Size;
     float32       ParseSpeed;
+    #if MEDIAINFO_EVENTS
+    Ztring        File_Names_RootDirectory;
+    #endif //MEDIAINFO_EVENTS
     #if MEDIAINFO_DEMUX
     bool          Demux_EventWasSent;
+    int64u          Demux_Offset_Frame;
+    int64u          Demux_Offset_DTS;
+    int64u          Demux_Offset_DTS_FromStream;
+    File__Analyze*  Events_Delayed_CurrentSource;
         #if MEDIAINFO_SEEK
         bool      Demux_IsSeeking;
         #endif //MEDIAINFO_SEEK
@@ -259,12 +304,28 @@ private :
     bool                    FileIsSub;
     bool                    FileIsDetectingDuration;
     bool                    FileIsReferenced;
+    bool                    FileTestContinuousFileNames;
     bool                    FileKeepInfo;
     bool                    FileStopAfterFilled;
     bool                    FileStopSubStreamAfterFilled;
     bool                    Audio_MergeMonoStreams;
     bool                    File_Demux_Interleave;
     bool                    File_ID_OnlyRoot;
+    #if MEDIAINFO_ADVANCED
+        bool                File_IgnoreSequenceFileSize;
+        float64             File_DefaultFrameRate;
+        bool                File_Source_List;
+        bool                File_RiskyBitRateEstimation;
+        #if MEDIAINFO_DEMUX
+            bool                File_Demux_Unpacketize_StreamLayoutChange_Skip;
+        #endif //MEDIAINFO_DEMUX
+    #endif //MEDIAINFO_ADVANCED
+    #if MEDIAINFO_MD5
+        bool                File_Md5;
+    #endif //MEDIAINFO_MD5
+    #if defined(MEDIAINFO_REFERENCES_YES)
+        bool                File_CheckSideCarFiles;
+    #endif //defined(MEDIAINFO_REFERENCES_YES)
     Ztring                  File_FileName;
     Ztring                  File_FileNameFormat;
     float64                 File_TimeToLive;
@@ -280,6 +341,7 @@ private :
 
     #if MEDIAINFO_FILTER
     std::map<int16u, bool>  File_Filter_16;
+    bool                    File_Filter_Audio;
     bool                    File_Filter_HasChanged_;
     #endif //MEDIAINFO_FILTER
 
@@ -322,6 +384,8 @@ private :
     #if MEDIAINFO_DEMUX
     bool                    Demux_ForceIds;
     bool                    Demux_PCM_20bitTo16bit;
+    bool                    Demux_PCM_20bitTo24bit;
+    bool                    Demux_Avc_Transcode_Iso14496_15_to_Iso14496_10;
     bool                    Demux_Unpacketize;
     float64                 Demux_Rate;
     int64u                  Demux_FirstDts;
@@ -332,6 +396,7 @@ private :
     #if MEDIAINFO_IBI
     std::string             Ibi;
     bool                    Ibi_Create;
+    bool                    Ibi_UseIbiInfoIfAvailable;
     #endif //MEDIAINFO_IBI
 
     //Specific
@@ -369,6 +434,10 @@ private :
     #endif //defined(MEDIAINFO_LIBCURL_YES)
 
     ZenLib::CriticalSection CS;
+
+    //Constructor
+    MediaInfo_Config_MediaInfo (const MediaInfo_Config_MediaInfo&);             // Prevent copy-construction
+    MediaInfo_Config_MediaInfo& operator=(const MediaInfo_Config_MediaInfo&);   // Prevent assignment
 };
 
 } //NameSpace

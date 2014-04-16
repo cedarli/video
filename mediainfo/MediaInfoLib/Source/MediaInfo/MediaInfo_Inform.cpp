@@ -1,20 +1,9 @@
-// MediaInfo_Inform - Base for other files
-// Copyright (C) 2002-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 // Inform part
@@ -35,6 +24,7 @@
 
 //---------------------------------------------------------------------------
 #include "ZenLib/Utils.h"
+#include "MediaInfo/Export/Export_EbuCore.h"
 #include "MediaInfo/Export/Export_Mpeg7.h"
 #include "MediaInfo/Export/Export_reVTMD.h"
 #include "MediaInfo/Export/Export_PBCore.h"
@@ -71,6 +61,8 @@ Ztring MediaInfo_Internal::Inform()
         }
     #endif //MEDIAINFO_TRACE
 
+    if (MediaInfoLib::Config.Inform_Get()==__T("EBUCore") || MediaInfoLib::Config.Inform_Get()==__T("EBUCore_1.4"))
+        return Export_EbuCore().Transform(*this);
     if (MediaInfoLib::Config.Inform_Get()==__T("MPEG-7"))
         return Export_Mpeg7().Transform(*this);
     if (MediaInfoLib::Config.Inform_Get()==__T("PBCore") || MediaInfoLib::Config.Inform_Get()==__T("PBCore_1.2"))
@@ -123,15 +115,15 @@ Ztring MediaInfo_Internal::Inform()
         }
         if (Count_Get(Stream_Text))
             Retour+=MediaInfoLib::Config.Inform_Get(__T("Text_End"));
-        if (Count_Get(Stream_Chapters))
+        if (Count_Get(Stream_Other))
             Retour+=MediaInfoLib::Config.Inform_Get(__T("Chapters_Begin"));
-        for (size_t I1=0; I1<Count_Get(Stream_Chapters); I1++)
+        for (size_t I1=0; I1<Count_Get(Stream_Other); I1++)
         {
-            Retour+=Inform(Stream_Chapters, I1, false);
-            if (I1!=Count_Get(Stream_Chapters)-1)
+            Retour+=Inform(Stream_Other, I1, false);
+            if (I1!=Count_Get(Stream_Other)-1)
                 Retour+=MediaInfoLib::Config.Inform_Get(__T("Chapters_Middle"));
         }
-        if (Count_Get(Stream_Chapters))
+        if (Count_Get(Stream_Other))
             Retour+=MediaInfoLib::Config.Inform_Get(__T("Chapters_End"));
         if (Count_Get(Stream_Image))
             Retour+=MediaInfoLib::Config.Inform_Get(__T("Image_Begin"));
@@ -317,7 +309,7 @@ Ztring MediaInfo_Internal::Inform (stream_t StreamKind, size_t StreamPos, bool I
                     Retour+=__T("<");
                     Retour+=Nom;
                     if (Modified==1 && !MediaInfoLib::Config.SkipBinaryData_Get()) //Base64
-                        Retour+=__T(" dt:dt=\"binary.base64\"");
+                        Retour+=__T(" dt=\"binary.base64\"");
                     Retour+=__T(">");
                     if (Modified==1 && MediaInfoLib::Config.SkipBinaryData_Get())
                         Retour+=__T("(Binary data)");

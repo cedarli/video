@@ -1,21 +1,8 @@
-// File__Analyze - Base for analyze files
-// Copyright (C) 2007-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -107,28 +94,30 @@ extern MediaInfo_Config Config;
 //---------------------------------------------------------------------------
 void File__Analyze::BS_Begin()
 {
-    if (Element_Offset>Element_Size)
-        return; //There is a problem
-
     size_t BS_Size;
-    if (Buffer_Offset+Element_Size<=Buffer_Size)
+    if (Element_Offset>=Element_Size)
+        BS_Size=0;
+    else if (Buffer_Offset+Element_Size<=Buffer_Size)
         BS_Size=(size_t)(Element_Size-Element_Offset);
-    else
+    else if (Buffer_Offset+Element_Offset<=Buffer_Size)
         BS_Size=Buffer_Size-(size_t)(Buffer_Offset+Element_Offset);
+    else
+        BS_Size=0;
+
     BS->Attach(Buffer+Buffer_Offset+(size_t)Element_Offset, BS_Size);
 }
 
 //---------------------------------------------------------------------------
 void File__Analyze::BS_Begin_LE()
 {
-    if (Element_Offset>Element_Size)
-        return; //There is a problem
-
     size_t BS_Size;
     if (Buffer_Offset+Element_Size<=Buffer_Size)
         BS_Size=(size_t)(Element_Size-Element_Offset);
-    else
+    else if (Buffer_Offset+Element_Offset<=Buffer_Size)
         BS_Size=Buffer_Size-(size_t)(Buffer_Offset+Element_Offset);
+    else
+        BS_Size=0;
+
     BT->Attach(Buffer+Buffer_Offset+(size_t)Element_Offset, BS_Size);
 }
 
@@ -640,19 +629,6 @@ void File__Analyze::Get_GUID(int128u &Info)
 }
 
 //***************************************************************************
-// UUID
-//***************************************************************************
-
-//---------------------------------------------------------------------------
-void File__Analyze::Get_UUID(int128u &Info)
-{
-    INTEGRITY_SIZE_ATLEAST_INT(16);
-    Info.hi=BigEndian2int64u(Buffer+Buffer_Offset+(size_t)Element_Offset);
-    Info.lo=BigEndian2int64u(Buffer+Buffer_Offset+(size_t)Element_Offset+8);
-    Element_Offset+=16;
-}
-
-//***************************************************************************
 // EBML
 //***************************************************************************
 
@@ -929,16 +905,6 @@ void File__Analyze::Get_SE(int32s &Info)
     double InfoD=pow((float)2, (float)LeadingZeroBits)-1+BS->Get4(LeadingZeroBits);
     INTEGRITY(InfoD<int32u(-1))
     Info=(int32s)(pow((double)-1, InfoD+1)*(int32u)ceil(InfoD/2));
-}
-
-//---------------------------------------------------------------------------
-void File__Analyze::Skip_SE()
-{
-    INTEGRITY(BS->Remain())
-    int8u LeadingZeroBits=0;
-    while(BS->Remain()>0 && !BS->GetB())
-        LeadingZeroBits++;
-    BS->Skip(LeadingZeroBits);
 }
 
 //---------------------------------------------------------------------------
@@ -1549,38 +1515,10 @@ void File__Analyze::Get_T2_(int8u  Bits, int16u &Info)
 }
 
 //---------------------------------------------------------------------------
-void File__Analyze::Get_T3_(int8u  Bits, int32u &Info)
-{
-    INTEGRITY_INT(Bits<=BT->Remain())
-    Info=BT->Get4(Bits);
-}
-
-//---------------------------------------------------------------------------
 void File__Analyze::Get_T4_(int8u  Bits, int32u &Info)
 {
     INTEGRITY_INT(Bits<=BT->Remain())
     Info=BT->Get4(Bits);
-}
-
-//---------------------------------------------------------------------------
-void File__Analyze::Get_T5_(int8u  Bits, int64u &Info)
-{
-    INTEGRITY_INT(Bits<=BT->Remain())
-    Info=BT->Get8(Bits);
-}
-
-//---------------------------------------------------------------------------
-void File__Analyze::Get_T6_(int8u  Bits, int64u &Info)
-{
-    INTEGRITY_INT(Bits<=BT->Remain())
-    Info=BT->Get8(Bits);
-}
-
-//---------------------------------------------------------------------------
-void File__Analyze::Get_T7_(int8u  Bits, int64u &Info)
-{
-    INTEGRITY_INT(Bits<=BT->Remain())
-    Info=BT->Get8(Bits);
 }
 
 //---------------------------------------------------------------------------
@@ -1619,38 +1557,10 @@ void File__Analyze::Peek_T2(int8u  Bits, int16u &Info)
 }
 
 //---------------------------------------------------------------------------
-void File__Analyze::Peek_T3(int8u  Bits, int32u &Info)
-{
-    INTEGRITY_INT(Bits<=BT->Remain())
-    Info=BT->Peek4(Bits);
-}
-
-//---------------------------------------------------------------------------
 void File__Analyze::Peek_T4(int8u  Bits, int32u &Info)
 {
     INTEGRITY_INT(Bits<=BT->Remain())
     Info=BT->Peek4(Bits);
-}
-
-//---------------------------------------------------------------------------
-void File__Analyze::Peek_T5(int8u  Bits, int64u &Info)
-{
-    INTEGRITY_INT(Bits<=BT->Remain())
-    Info=BT->Peek8(Bits);
-}
-
-//---------------------------------------------------------------------------
-void File__Analyze::Peek_T6(int8u  Bits, int64u &Info)
-{
-    INTEGRITY_INT(Bits<=BT->Remain())
-    Info=BT->Peek8(Bits);
-}
-
-//---------------------------------------------------------------------------
-void File__Analyze::Peek_T7(int8u  Bits, int64u &Info)
-{
-    INTEGRITY_INT(Bits<=BT->Remain())
-    Info=BT->Peek8(Bits);
 }
 
 //---------------------------------------------------------------------------

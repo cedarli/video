@@ -1,21 +1,8 @@
-// Main - Main functions
-// Copyright (C) 2002-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this program. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 #ifdef __BORLANDC__
@@ -30,7 +17,7 @@
 //---------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------
-const MediaInfoNameSpace::Char* MEDIAINFO_TITLE=__T("MediaInfo - http://mediainfo.sourceforge.net");
+const MediaInfoNameSpace::Char* MEDIAINFO_TITLE=__T("MediaInfo - http://MediaArea.net/MediaInfo");
 ZenLib::Ztring Text_Temp;
 using namespace ZenLib;
 //---------------------------------------------------------------------------
@@ -249,6 +236,13 @@ void Core::Menu_View_MPEG7 ()
 }
 
 //---------------------------------------------------------------------------
+void Core::Menu_View_EBUCore_1_4 ()
+{
+    MI->Option(__T("Inform"), __T("EBUCore_1.4"));
+    Kind=Kind_EBUCore_1_4;
+}
+
+//---------------------------------------------------------------------------
 void Core::Menu_View_Text ()
 {
     MI->Option(__T("Inform"), String());
@@ -390,13 +384,13 @@ String Core::StreamName (stream_t StreamKind) {
         break;
     case Stream_Video: return __T("Video");
         break;
-    case Stream_Chapters: return __T("Chapters");
+    case Stream_Text: return __T("Text");
+        break;
+    case Stream_Other: return __T("Other");
         break;
     case Stream_Image: return __T("Image");
         break;
     case Stream_Menu: return __T("Menu");
-        break;
-    case Stream_Text: return __T("Text");
         break;
     default: return __T("Unknown stream");
         break;

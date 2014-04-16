@@ -1,21 +1,8 @@
-// GUI_Main_Menu - WxWidgets GUI for MediaInfo, Menu
-// Copyright (C) 2002-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this program. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 #include "wx/wxprec.h"
@@ -158,7 +145,7 @@ void GUI_Main::Menu_Create()
 void GUI_Main::OnMenu_File_Open_Files(wxCommandEvent& WXUNUSED(event))
 {
     //User interaction
-    wxFileDialog* Dialog=new wxFileDialog(this, __T("Choose a file"), __T(""), __T(""), __T("*.*"), wxOPEN|wxFILE_MUST_EXIST|wxMULTIPLE);
+    wxFileDialog* Dialog=new wxFileDialog(this, __T("Choose a file"), __T(""), __T(""), __T("*.*"), wxFD_OPEN|wxFD_FILE_MUST_EXIST|wxFD_MULTIPLE);
     if (Dialog->ShowModal()!=wxID_OK)
     {
         delete Dialog;
@@ -171,7 +158,7 @@ void GUI_Main::OnMenu_File_Open_Files(wxCommandEvent& WXUNUSED(event))
     //Configuring
     C->Menu_File_Open_Files_Begin();
     for (size_t Pos=0; Pos<FileNames.size(); Pos++)
-        C->Menu_File_Open_Files_Continue(FileNames[Pos].c_str());
+        C->Menu_File_Open_Files_Continue(String(FileNames[Pos].c_str()));
 
     //Showing
     View->GUI_Refresh();
@@ -189,7 +176,7 @@ void GUI_Main::OnMenu_File_Open_Directory(wxCommandEvent& WXUNUSED(event))
 
     //Configuring
     C->Menu_File_Open_Files_Begin();
-    C->Menu_File_Open_Files_Continue(DirName.c_str());
+    C->Menu_File_Open_Files_Continue(String(DirName.c_str()));
 
     //Showing
     View->GUI_Refresh();
@@ -324,7 +311,7 @@ void GUI_Main::OnMenu_Help_About(wxCommandEvent& WXUNUSED(event))
 {
     //Showing
     wxString Version=C->Menu_Option_Preferences_Option(__T("Info_Version"), __T("")).c_str();
-    wxMessageBox(__T("This is the About dialog of the minimal MediaInfo sample.\n")+Version+__T("\nMediaInfo supplies technical and tag information about \na video or audio file.\nTo get more info's visit \nhttp://mediainfo.sourceforge.net"), __T("About Minimal"), wxOK | wxICON_INFORMATION, this);
+    wxMessageBox(__T("This is the About dialog of the minimal MediaInfo sample.\n")+Version+__T("\nMediaInfo supplies technical and tag information about \na video or audio file.\nTo get more info's visit \nhttp://MediaArea.net/MediaInfo"), __T("About Minimal"), wxOK | wxICON_INFORMATION, this);
 }
 
 //---------------------------------------------------------------------------

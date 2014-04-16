@@ -1,21 +1,8 @@
-// File_Aac - Info for AAC (Raw) files
-// Copyright (C) 2008-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -63,7 +50,7 @@ File_Aac::File_Aac()
     IsRawStream=true;
 
     //In
-    Frame_Count_Valid=MediaInfoLib::Config.ParseSpeed_Get()>=0.5?128:(MediaInfoLib::Config.ParseSpeed_Get()>=0.3?32:2);
+    Frame_Count_Valid=MediaInfoLib::Config.ParseSpeed_Get()>=0.5?128:(MediaInfoLib::Config.ParseSpeed_Get()>=0.3?32:8);
     FrameIsAlwaysComplete=false;
     Mode=Mode_Unknown;
 
@@ -90,7 +77,7 @@ File_Aac::File_Aac()
     ps=NULL;
 
     //Temp
-    CanFill=false;
+    CanFill=true;
 }
 
 //---------------------------------------------------------------------------
@@ -123,6 +110,35 @@ void File_Aac::Streams_Fill()
     {
         case Mode_ADTS    : File__Tags_Helper::Streams_Fill(); break;
         default           : ;
+    }
+}
+
+//---------------------------------------------------------------------------
+void File_Aac::Streams_Update()
+{
+    bool ComputeBitRate=false;
+
+    switch(Mode)
+    {
+        #if MEDIAINFO_ADVANCED
+        case Mode_LATM    : if (Config->File_RiskyBitRateEstimation_Get())
+                                ComputeBitRate=true;
+                            break;
+        #endif //MEDIAINFO_ADVANCED
+        default           : ;
+    }
+
+    if (ComputeBitRate)
+    {
+        int64u aac_frame_length_Total=0;
+        for (size_t Pos=0; Pos<aac_frame_lengths.size(); Pos++)
+            aac_frame_length_Total+=aac_frame_lengths[Pos];
+
+        int64u BitRate=(sampling_frequency/1024);
+        BitRate*=aac_frame_length_Total*8;
+        BitRate/=aac_frame_lengths.size();
+
+        Fill(Stream_Audio, 0, Audio_BitRate, BitRate, 10, true);
     }
 }
 
@@ -228,6 +244,9 @@ void File_Aac::Read_Buffer_Continue()
     if (Element_Size==0)
         return;
 
+    if (Frame_Count==0)
+        PTS_Begin=FrameInfo.PTS;
+
     switch(Mode)
     {
         case Mode_AudioSpecificConfig : Read_Buffer_Continue_AudioSpecificConfig(); break;
@@ -278,6 +297,8 @@ void File_Aac::Read_Buffer_Continue_raw_data_block()
         if (Frame_Count>=Frame_Count_Valid)
         {
             //No more need data
+            if (Mode==Mode_LATM)
+                File__Analyze::Accept();
             File__Analyze::Finish();
         }
     FILLING_END();
@@ -324,6 +345,10 @@ bool File_Aac::Synchronize_ADTS()
                 break;
             if (File_Offset+Buffer_Offset+aac_frame_length!=File_Size-File_EndTagSize)
             {
+                //Padding
+                while (Buffer_Offset+aac_frame_length+2<=Buffer_Size && Buffer[Buffer_Offset+aac_frame_length]==0x00)
+                    aac_frame_length++;
+
                 if (Buffer_Offset+aac_frame_length+2>Buffer_Size)
                     return false; //Need more data
 
@@ -336,6 +361,10 @@ bool File_Aac::Synchronize_ADTS()
                     int16u aac_frame_length2=(CC3(Buffer+Buffer_Offset+aac_frame_length+3)>>5)&0x1FFF;
                     if (File_Offset+Buffer_Offset+aac_frame_length+aac_frame_length2!=File_Size-File_EndTagSize)
                     {
+                        //Padding
+                        while (Buffer_Offset+aac_frame_length+aac_frame_length2+2<=Buffer_Size && Buffer[Buffer_Offset+aac_frame_length+aac_frame_length2]==0x00)
+                            aac_frame_length2++;
+
                         if (Buffer_Offset+aac_frame_length+aac_frame_length2+2>Buffer_Size)
                             return false; //Need more data
 
@@ -348,6 +377,10 @@ bool File_Aac::Synchronize_ADTS()
                             int16u aac_frame_length3=(CC3(Buffer+Buffer_Offset+aac_frame_length+aac_frame_length2+3)>>5)&0x1FFF;
                             if (File_Offset+Buffer_Offset+aac_frame_length+aac_frame_length2+aac_frame_length3!=File_Size-File_EndTagSize)
                             {
+                                //Padding
+                                while (Buffer_Offset+aac_frame_length+aac_frame_length2+aac_frame_length3+2<=Buffer_Size && Buffer[Buffer_Offset+aac_frame_length+aac_frame_length2+aac_frame_length3]==0x00)
+                                    aac_frame_length3++;
+
                                 if (Buffer_Offset+aac_frame_length+aac_frame_length2+aac_frame_length3+2>Buffer_Size)
                                     return false; //Need more data
 
@@ -388,7 +421,6 @@ bool File_Aac::Synchronize_ADTS()
 
     //Synched is OK
     Mode=Mode_ADTS;
-    File__Tags_Helper::Accept("ADTS");
     return true;
 }
 
@@ -450,7 +482,6 @@ bool File_Aac::Synchronize_LATM()
 
     //Synched is OK
     Mode=Mode_LATM;
-    File__Analyze::Accept("LATM");
     return true;
 }
 
@@ -471,6 +502,10 @@ bool File_Aac::Synched_Test_ADTS()
     //Tags
     if (!File__Tags_Helper::Synched_Test())
         return false;
+
+    //Null padding
+    while (Buffer_Offset+2<=Buffer_Size && Buffer[Buffer_Offset]==0x00)
+        Buffer_Offset++;
 
     //Must have enough buffer for having header
     if (Buffer_Offset+2>Buffer_Size)
@@ -617,8 +652,15 @@ void File_Aac::Data_Parse()
         FrameSize_Min=Header_Size+Element_Size;
     if (FrameSize_Max<Header_Size+Element_Size)
         FrameSize_Max=Header_Size+Element_Size;
+    switch(Mode)
+    {
+        case Mode_LATM    :
+                            if (aac_frame_lengths.size()<1000) //TODO: find a way to detect properly when the container has finished to analyze
+                                aac_frame_lengths.push_back((int16u)Element_Size); break;
+        default           : ;
+    }
 
-    if (Frame_Count>Frame_Count_Valid || CanFill)
+    if (Frame_Count>Frame_Count_Valid)
     {
         Skip_XX(Element_Size,                                   "Data");
         FrameInfo.DTS+=float64_int64s(((float64)frame_length)*1000000000/sampling_frequency);
@@ -637,22 +679,32 @@ void File_Aac::Data_Parse()
         //Counting
         if (File_Offset+Buffer_Offset+Element_Size==File_Size)
             Frame_Count_Valid=Frame_Count; //Finish frames in case of there are less than Frame_Count_Valid frames
-        Frame_Count++;
-        if (Frame_Count_NotParsedIncluded!=(int64u)-1)
-            Frame_Count_NotParsedIncluded++;
-        Element_Info1(Ztring::ToZtring(Frame_Count));
+        if (CanFill)
+        {
+            Frame_Count++;
+            if (Frame_Count_NotParsedIncluded!=(int64u)-1)
+                Frame_Count_NotParsedIncluded++;
+            Element_Info1(Ztring::ToZtring(Frame_Count));
+        }
+
+        if (!Status[IsAccepted])
+            File__Analyze::Accept();
 
         //Filling
-        if ((Frame_Count>=Frame_Count_Valid || CanFill) && Config->ParseSpeed<1.0)
+        if (Frame_Count>=Frame_Count_Valid && Config->ParseSpeed<1.0)
         {
             //No more need data
             switch (Mode)
             {
                 case Mode_ADTS        :
                 case Mode_LATM        :
-                                        Fill();
-                                        if (!IsSub)
-                                            File__Tags_Helper::Finish(); break;
+                                        if (!Status[IsFilled])
+                                        {
+                                            Fill();
+                                            if (!IsSub)
+                                                File__Tags_Helper::Finish();
+                                        }
+                                        break;
                 default               : ; //No header
             }
 

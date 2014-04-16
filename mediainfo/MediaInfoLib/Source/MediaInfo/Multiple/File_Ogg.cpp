@@ -1,21 +1,8 @@
-// File_Ogg - Info for ogg files
-// Copyright (C) 2002-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -330,20 +317,21 @@ void File_Ogg::Data_Parse()
     Frame_Count++;
 
     //If first chunk of a stream
-    if (Stream[Element_Code].Parser==NULL)
+    stream& Stream_Item=Stream[Element_Code]; //[+] FlylinkDC++ Team
+    if (Stream_Item.Parser==NULL)
     {
         if (Parsing_End)
             return; //Maybe multitracks concatained, not supported
-        Stream[Element_Code].Parser=new File_Ogg_SubElement;
-        Open_Buffer_Init(Stream[Element_Code].Parser);
-        ((File_Ogg_SubElement*)Stream[Element_Code].Parser)->InAnotherContainer=IsSub;
+        Stream_Item.Parser=new File_Ogg_SubElement;
+        Open_Buffer_Init(Stream_Item.Parser);
+        ((File_Ogg_SubElement*)Stream_Item.Parser)->InAnotherContainer=IsSub;
         StreamsToDo++;
     }
-    ((File_Ogg_SubElement*)Stream[Element_Code].Parser)->MultipleStreams=Stream.size()>1; //has no sens for the first init, must check allways
+    ((File_Ogg_SubElement*)Stream_Item.Parser)->MultipleStreams=Stream.size()>1; //has no sens for the first init, must check allways
 
     //Parsing
-    File_Ogg_SubElement* Parser=(File_Ogg_SubElement*)Stream[Element_Code].Parser;
-    if (Stream[Element_Code].SearchingPayload)
+    File_Ogg_SubElement* Parser=(File_Ogg_SubElement*)Stream_Item.Parser;
+    if (Stream_Item.SearchingPayload)
         //For each chunk
         for (size_t Chunk_Sizes_Pos=0; Chunk_Sizes_Pos<Chunk_Sizes.size(); Chunk_Sizes_Pos++)
         {
@@ -372,10 +360,9 @@ void File_Ogg::Data_Parse()
             if (Parser->Status[IsFinished] || (Element_Offset==Element_Size && eos))
             {
                 StreamsToDo--;
-                Stream[Element_Code].SearchingPayload=false;
+                Stream_Item.SearchingPayload=false;
                 break;
             }
-
         }
     else
         Skip_XX(Element_Size,                                   "Data");

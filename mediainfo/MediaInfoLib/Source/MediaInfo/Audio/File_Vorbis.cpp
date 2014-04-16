@@ -1,20 +1,9 @@
-// File_Vorbis - Info for Vorbis files
-// Copyright (C) 2007-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 // Note : the buffer must be given in ONE call
@@ -109,7 +98,7 @@ void File_Vorbis::Identification()
     Skip_L1(                                                    "Framing");
 
     //Filling
-    FILLING_BEGIN()
+    FILLING_BEGIN();
         Accept("Vorbis");
 
         Stream_Prepare(Stream_Audio);
@@ -145,7 +134,7 @@ void File_Vorbis::Setup()
     for (int Pos=0; Pos<vorbis_codebook_count; Pos++)
     {
         Element_Begin1("codebook");
-        Get_T3 (24, codebook,                                   "codebook");
+        Get_T4 (24, codebook,                                   "codebook");
         if (codebook!=0x564342)
             return;
         Get_BT (16, codebook_dimensions,                        "codebook_dimensions");

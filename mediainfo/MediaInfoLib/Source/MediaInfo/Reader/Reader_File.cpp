@@ -1,21 +1,8 @@
-// MediaInfo_Internal - All info about media files
-// Copyright (C) 2002-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // For user: you can disable or enable it
@@ -61,14 +48,19 @@ namespace MediaInfoLib
 const size_t Buffer_NoJump=128*1024;
 
 //---------------------------------------------------------------------------
-size_t Reader_File::Format_Test(MediaInfo_Internal* MI, const String &File_Name)
+size_t Reader_File::Format_Test(MediaInfo_Internal* MI, String File_Name)
 {
     //std::cout<<Ztring(File_Name).To_Local().c_str()<<std::endl;
     #if MEDIAINFO_EVENTS
         {
             struct MediaInfo_Event_General_Start_0 Event;
+            memset(&Event, 0xFF, sizeof(struct MediaInfo_Event_Generic));
             Event.EventCode=MediaInfo_EventCode_Create(MediaInfo_Parser_None, MediaInfo_Event_General_Start, 0);
+            Event.EventSize=sizeof(struct MediaInfo_Event_General_Start_0);
+            Event.StreamIDs_Size=0;
             Event.Stream_Size=File::Size_Get(File_Name);
+            Event.FileName=NULL;
+            Event.FileName_Unicode=NULL;
             MI->Config.Event_Send(NULL, (const int8u*)&Event, sizeof(MediaInfo_Event_General_Start_0));
         }
     #endif //MEDIAINFO_EVENTS
@@ -137,7 +129,11 @@ size_t Reader_File::Format_Test_PerParser(MediaInfo_Internal* MI, const String &
     MI->Config.File_Current_Size=MI->Config.File_Size;
     MI->Config.File_Sizes.clear();
     MI->Config.File_Sizes.push_back(MI->Config.File_Size);
-    if (MI->Config.File_Names.size()>1)
+    if (MI->Config.File_Names.size()>1
+        #if MEDIAINFO_ADVANCED
+            && !MI->Config.File_IgnoreSequenceFileSize_Get()
+        #endif //MEDIAINFO_ADVANCED
+            )
     {
         for (size_t Pos=1; Pos<MI->Config.File_Names.size(); Pos++)
         {
@@ -270,7 +266,7 @@ size_t Reader_File::Format_Test_PerParser_Continue (MediaInfo_Internal* MI)
                     }
                     if (Pos>=MI->Config.File_Sizes.size())
                         break;
-                    if (Pos!=MI->Config.File_Names_Pos)
+                    if (Pos!=MI->Config.File_Names_Pos-1)
                     {
                         F.Close();
                         F.Open(MI->Config.File_Names[Pos]);
@@ -304,15 +300,39 @@ size_t Reader_File::Format_Test_PerParser_Continue (MediaInfo_Internal* MI)
                 MI->Config.File_Buffer=new int8u[MI->Config.File_Buffer_Size_Max];
             }
 
+            //Testing multiple file per stream
+            if (F.Position_Get()>=F.Size_Get())
+            {
+                if (MI->Config.File_Names_Pos<MI->Config.File_Names.size())
+                {
+                    MI->Config.File_Current_Offset+=F.Size_Get();
+                    F.Close();
+                    #if MEDIAINFO_EVENTS
+                        MI->Config.Event_SubFile_Start(MI->Config.File_Names[MI->Config.File_Names_Pos]);
+                    #endif //MEDIAINFO_EVENTS
+                    F.Open(MI->Config.File_Names[MI->Config.File_Names_Pos]);
+                    MI->Config.File_Names_Pos++;
+                    MI->Config.File_Current_Size+=F.Size_Get();
+                }
+            }
+
             MI->Config.File_Buffer_Size=F.Read(MI->Config.File_Buffer, (F.Position_Get()+MI->Config.File_Buffer_Size_ToRead<(Partial_End<=MI->Config.File_Size?Partial_End:MI->Config.File_Size))?MI->Config.File_Buffer_Size_ToRead:((size_t)((Partial_End<=MI->Config.File_Size?Partial_End:MI->Config.File_Size)-F.Position_Get())));
 
             //Testing growing files
-            if (!MI->Config.File_IsGrowing && F.Position_Get()>=MI->Config.File_Size)
+            int64u Growing_Temp=(int64u)-1;
+            if (MI->Config.ParseSpeed>=1.0 && !MI->Config.File_IsGrowing && MI->Config.File_Current_Offset+F.Position_Get()>=MI->Config.File_Size)
             {
-                if (MediaInfoLib::Config.ParseSpeed_Get()>=1.0) //Only if full parsing
+                if (MI->Config.File_Names.size()==1)
                 {
-                    int64u FileSize_New=F.Size_Get();
-                    if (MI->Config.File_Size!=FileSize_New)
+                    Growing_Temp=F.Size_Get();
+                    if (MI->Config.File_Size!=Growing_Temp)
+                        MI->Config.File_IsGrowing=true;
+                }
+                else if (MI->Config.File_TestContinuousFileNames_Get())
+                {
+                    Growing_Temp=MI->Config.File_Names.size();
+                    MI->TestContinuousFileNames();
+                    if (MI->Config.File_Names.size()!=Growing_Temp)
                         MI->Config.File_IsGrowing=true;
                 }
             }
@@ -323,16 +343,29 @@ size_t Reader_File::Format_Test_PerParser_Continue (MediaInfo_Internal* MI)
                 MI->Config.File_IsGrowing=false;
                 MI->Config.File_IsNotGrowingAnymore=false;
             }
-            if (MI->Config.File_IsGrowing && F.Position_Get()>=MI->Config.File_Size)
+            if (MI->Config.File_IsGrowing && (Growing_Temp!=(int64u)-1 || MI->Config.File_Current_Offset+F.Position_Get()>=MI->Config.File_Size))
             {
                 for (size_t CountOfSeconds=0; CountOfSeconds<(size_t)MI->Config.File_GrowingFile_Delay_Get(); CountOfSeconds++)
                 {
-                    int64u FileSize_New=F.Size_Get();
-                    if (MI->Config.File_Size!=FileSize_New)
+                    if (MI->Config.File_Names.size()==1)
                     {
-                        MI->Config.File_Current_Size=MI->Config.File_Size=FileSize_New;
-                        MI->Open_Buffer_Init(MI->Config.File_Size, F.Position_Get()-MI->Config.File_Buffer_Size);
-                        break;
+                        Growing_Temp=F.Size_Get();
+                        if (MI->Config.File_Size!=Growing_Temp)
+                        {
+                            MI->Config.File_Current_Size=MI->Config.File_Size=Growing_Temp;
+                            MI->Open_Buffer_Init(MI->Config.File_Size, MI->Config.File_Current_Offset+F.Position_Get()-MI->Config.File_Buffer_Size);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        Growing_Temp=MI->Config.File_Names.size();
+                        MI->TestContinuousFileNames();
+                        if (MI->Config.File_Names.size()!=Growing_Temp)
+                        {
+                            MI->Open_Buffer_Init(MI->Config.File_Size, MI->Config.File_Current_Offset+F.Position_Get()-MI->Config.File_Buffer_Size);
+                            break;
+                        }
                     }
                     #ifdef WINDOWS
                         Sleep(1000);
@@ -347,19 +380,6 @@ size_t Reader_File::Format_Test_PerParser_Continue (MediaInfo_Internal* MI)
 
             //Parser
             Status=MI->Open_Buffer_Continue(MI->Config.File_Buffer, MI->Config.File_Buffer_Size);
-
-            //Testing multiple file per stream
-            if (F.Position_Get()>=F.Size_Get())
-            {
-                if (MI->Config.File_Names_Pos<MI->Config.File_Names.size())
-                {
-                    MI->Config.File_Current_Offset+=F.Size_Get();
-                    F.Close();
-                    F.Open(MI->Config.File_Names[MI->Config.File_Names_Pos]);
-                    MI->Config.File_Names_Pos++;
-                    MI->Config.File_Current_Size+=F.Size_Get();
-                }
-            }
 
             if (MI->Config.File_Buffer_Size==0)
             {
@@ -379,6 +399,10 @@ size_t Reader_File::Format_Test_PerParser_Continue (MediaInfo_Internal* MI)
                 break; //Termination is requested
         }
     }
+
+    //Deleting buffer
+    delete[] MI->Config.File_Buffer; MI->Config.File_Buffer=NULL;
+    MI->Config.File_Buffer_Size_Max=0;
 
     #ifdef MEDIAINFO_DEBUG
         std::cout<<std::hex<<Reader_File_Offset<<" - "<<Reader_File_Offset+Reader_File_BytesRead<<" : "<<std::dec<<Reader_File_BytesRead<<" bytes"<<std::endl;

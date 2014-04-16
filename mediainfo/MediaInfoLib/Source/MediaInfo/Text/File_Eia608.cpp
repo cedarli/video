@@ -1,21 +1,8 @@
-// File_Eia608 - Info for EIA-608 files
-// Copyright (C) 2009-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -78,6 +65,7 @@ File_Eia608::File_Eia608()
         ParserIDs[0]=MediaInfo_Parser_Eia608;
         StreamIDs_Width[0]=1;
     #endif //MEDIAINFO_EVENTS
+    ParserName=__T("EIA-608");
     PTS_DTS_Needed=true;
 
     //In
@@ -121,6 +109,8 @@ void File_Eia608::Streams_Fill()
                 string ID=StreamPos<2?"CC":"T";
                 ID+='1'+(cc_type*2)+(StreamPos%2);
                 Fill(Stream_Text, StreamPos_Last, Text_ID, ID);
+                Fill(Stream_Text, StreamPos_Last, "ServiceName", ID);
+                (*Stream_More)[StreamKind_Last][StreamPos_Last](Ztring().From_Local("ServiceName"), Info_Options)=__T("N NT");
             }
         }
 }
@@ -159,6 +149,17 @@ void File_Eia608::Read_Buffer_Unsynched()
 
     XDS_Data.clear();
     XDS_Level=(size_t)-1;
+
+    #if MEDIAINFO_EVENTS
+        TextMode=true;  DataChannelMode=true;
+        HasChanged();
+        TextMode=true;  DataChannelMode=false;
+        HasChanged();
+        TextMode=false; DataChannelMode=true;
+        HasChanged();
+        TextMode=false; DataChannelMode=false;
+        HasChanged();
+    #endif //MEDIAINFO_EVENTS
 }
 
 //***************************************************************************
@@ -338,6 +339,95 @@ void File_Eia608::XDS_Current_ContentAdvisory()
     if (XDS_Data[XDS_Level].size()!=6)
     {
         return; //There is a problem
+    }
+
+    Clear(Stream_General, 0, General_LawRating);
+
+    int8u a1a0=(XDS_Data[XDS_Level][2]>>3)&0x3;
+    const char* ContentAdvisory=NULL;
+    string ContentDescriptors;
+    switch (a1a0)
+    {
+        case 0:
+        case 2:
+                switch (XDS_Data[XDS_Level][2]&0x7) //r2r1r0
+                {
+                    case 0 : ContentAdvisory="N/A"; break;
+                    case 1 : ContentAdvisory="G"; break;
+                    case 2 : ContentAdvisory="PG"; break;
+                    case 3 : ContentAdvisory="PG-13"; break;
+                    case 4 : ContentAdvisory="R"; break;
+                    case 5 : ContentAdvisory="NC-17"; break;
+                    case 6 : ContentAdvisory="C"; break;
+                    default: ;
+                }
+                break;
+        case 1:
+                switch (XDS_Data[XDS_Level][3]&0x7) //g2g1g0
+                {
+                    case 0 : ContentAdvisory="None"; break;
+                    case 1 : ContentAdvisory="TV-Y"; break;
+                    case 2 : ContentAdvisory="TV-Y7"; break;
+                    case 3 : ContentAdvisory="TV-G"; break;
+                    case 4 : ContentAdvisory="TV-PG"; break;
+                    case 5 : ContentAdvisory="TV-14"; break;
+                    case 6 : ContentAdvisory="TV-MA"; break;
+                    case 7 : ContentAdvisory="None"; break;
+                }
+                if (XDS_Data[XDS_Level][2]&0x20) //Suggestive dialogue
+                    ContentDescriptors+='D';
+                if (XDS_Data[XDS_Level][3]&0x8) //Coarse language
+                    ContentDescriptors+='L';
+                if (XDS_Data[XDS_Level][3]&0x10) //Sexual content
+                    ContentDescriptors+='S';
+                if (XDS_Data[XDS_Level][3]&0x20) //Violence
+                {
+                    if ((XDS_Data[XDS_Level][3]&0x7)==2) //"TV-Y7" --> Fantasy Violence
+                        ContentDescriptors+="FV";
+                    else
+                        ContentDescriptors+='V';
+                }
+                break;
+        case 3:
+                if (XDS_Data[XDS_Level][3]&0x8) //a3
+                {
+                    ContentAdvisory="(Reserved)";
+                }
+                else
+                {
+                    if (XDS_Data[XDS_Level][2]&0x20) //a2
+                        switch (XDS_Data[XDS_Level][3]&0x7) //g2g1g0
+                        {
+                            case 0 : ContentAdvisory="E"; break;
+                            case 1 : ContentAdvisory="G"; break;
+                            case 2 : ContentAdvisory="8+"; break;
+                            case 3 : ContentAdvisory="13+"; break;
+                            case 4 : ContentAdvisory="16+"; break;
+                            case 5 : ContentAdvisory="18+"; break;
+                            default: ;
+                        }
+                    else
+                        switch (XDS_Data[XDS_Level][3]&0x7) //g2g1g0
+                        {
+                            case 0 : ContentAdvisory="E"; break;
+                            case 1 : ContentAdvisory="C"; break;
+                            case 2 : ContentAdvisory="C8+"; break;
+                            case 3 : ContentAdvisory="G"; break;
+                            case 4 : ContentAdvisory="PG"; break;
+                            case 5 : ContentAdvisory="14+"; break;
+                            case 6 : ContentAdvisory="18+"; break;
+                            default: ;
+                        }
+                }
+                break;
+    }
+
+    if (ContentAdvisory)
+    {
+        string ContentAdvisory_String=ContentAdvisory;
+        if (!ContentDescriptors.empty())
+            ContentAdvisory_String+=" ("+ContentDescriptors+')';
+        Fill(Stream_General, 0, General_LawRating, ContentAdvisory_String.c_str());
     }
 }
 

@@ -1,21 +1,8 @@
-// File_Riff - Info for RIFF files
-// Copyright (C) 2002-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -101,7 +88,6 @@ File_Riff::File_Riff()
     #endif //MEDIAINFO_EVENTS
     #if MEDIAINFO_DEMUX
         Demux_Level=2; //Container
-        Demux_EventWasSent_Accept_Specific=true;
     #endif //MEDIAINFO_DEMUX
     DataMustAlwaysBeComplete=false;
 
@@ -144,6 +130,9 @@ File_Riff::File_Riff()
     SecondPass=false;
     DV_FromHeader=NULL;
     Kind=Kind_None;
+    #if MEDIAINFO_DEMUX
+    Demux_Parser=NULL;
+    #endif //MEDIAINFO_DEMUX
 
     //Pointers
     Stream_Structure_Temp=Stream_Structure.end();
@@ -168,8 +157,13 @@ void File_Riff::Streams_Finish ()
     #if defined(MEDIAINFO_ANCILLARY_YES)
         if (Ancillary && (*Ancillary))
         {
+            Clear();
+            Stream_Prepare(Stream_General);
             Finish(*Ancillary);
             Merge(**Ancillary);
+            Ztring LawRating=(*Ancillary)->Retrieve(Stream_General, 0, General_LawRating);
+            if (!LawRating.empty())
+                Fill(Stream_General, 0, General_LawRating, LawRating, true);
             return;
         }
     #endif //defined(MEDIAINFO_ANCILLARY_YES)
@@ -177,6 +171,11 @@ void File_Riff::Streams_Finish ()
     //Global
     if (IsRIFF64)
         Fill(Stream_General, 0, General_Format_Profile, "RF64");
+
+    //Time codes
+    TimeCode_Fill(__T("ISMP"), INFO_ISMP);
+    TimeCode_Fill(__T("Adobe tc_A"), Tdat_tc_A);
+    TimeCode_Fill(__T("Adobe tc_O"), Tdat_tc_O);
 
     //For each stream
     std::map<int32u, stream>::iterator Temp=Stream.begin();
@@ -189,6 +188,23 @@ void File_Riff::Streams_Finish ()
         //StreamSize
         if (Temp->second.StreamSize>0)
             Fill(StreamKind_Last, StreamPos_Last, Fill_Parameter(StreamKind_Last, Generic_StreamSize), Temp->second.StreamSize);
+
+        //When there are few frames, difficult to detect PCM
+        if (Temp->second.IsPcm && !Temp->second.Parsers.empty() && !Temp->second.Parsers[0]->Status[IsAccepted])
+        {
+            for (size_t Pos=0; Pos<Temp->second.Parsers.size()-1; Pos++)
+                delete Temp->second.Parsers[Pos];
+            Temp->second.Parsers.erase(Temp->second.Parsers.begin(), Temp->second.Parsers.begin()+Temp->second.Parsers.size()-1);
+            Temp->second.Parsers[0]->Accept();
+        }
+
+        //PAR
+        if (PAR && StreamKind_Last==Stream_Video)
+            Fill(Stream_Video, StreamPos_Last, Video_PixelAspectRatio, PAR);
+
+        Ztring ID;
+        if (Temp->first!=(int32u)-1)
+            ID.From_Number(((Temp->first>>24)-'0')*10+(((Temp->first>>16)&0xFF)-'0'));
 
         //Parser specific
         if (Temp->second.Parsers.size()==1)
@@ -209,9 +225,40 @@ void File_Riff::Streams_Finish ()
                 Temp->second.Parsers[0]->Open_Buffer_Unsynch();
             }
             Finish(Temp->second.Parsers[0]);
-            Merge(*Temp->second.Parsers[0], StreamKind_Last, 0, StreamPos_Last);
-            Fill(StreamKind_Last, StreamPos_Last, General_ID, ((Temp->first>>24)-'0')*10+(((Temp->first>>16)&0xFF)-'0'));
-            Fill(StreamKind_Last, StreamPos_Last, General_StreamOrder, ((Temp->first>>24)-'0')*10+(((Temp->first>>16)&0xFF)-'0'));
+            if (!Temp->second.Parsers.empty() && Temp->second.Parsers[0]->Count_Get(StreamKind_Last))
+                for (size_t Pos=0; Pos<Temp->second.Parsers[0]->Count_Get(StreamKind_Last); Pos++)
+                {
+                    Ztring Temp_ID=ID;
+                    Ztring Temp_ID_String=ID;
+                    Merge(*Temp->second.Parsers[0], StreamKind_Last, Pos, StreamPos_Last+Pos);
+                    if (!Retrieve(StreamKind_Last, StreamPos_Last, General_ID).empty())
+                    {
+                        if (!Temp_ID.empty())
+                        {
+                            Temp_ID+=__T('-');
+                            Temp_ID_String+=__T('-');
+                        }
+                        Temp_ID+=Retrieve(StreamKind_Last, StreamPos_Last, General_ID);
+                        Temp_ID_String+=Retrieve(StreamKind_Last, StreamPos_Last, General_ID);
+                    }
+                    Fill(StreamKind_Last, StreamPos_Last, General_ID, Temp_ID, true);
+                    Fill(StreamKind_Last, StreamPos_Last, General_StreamOrder, Temp_ID_String, true);
+
+                    //Special case: Compressed audio hidden in PCM
+                    if (StreamKind_Last==Stream_Audio
+                     && Temp->second.Compression==1
+                     && Retrieve(Stream_General, 0, General_Format)==__T("Wave") //Some DTS or SMPTE ST 337 streams are coded "1"
+                     && !Retrieve(Stream_Audio, StreamPos_Last, Audio_Channel_s__Original).empty())
+                    {
+                        Clear(Stream_Audio, StreamPos_Last, Audio_Channel_s__Original);
+                        Fill(Stream_Audio, StreamPos_Last, Audio_Channel_s_, 6, 10, true); //The PCM channel count is fake
+                    }
+                }
+            else
+            {
+                Fill(StreamKind_Last, StreamPos_Last, General_ID, ID, true);
+                Fill(StreamKind_Last, StreamPos_Last, General_StreamOrder, ID, true);
+            }
 
             //Hacks - After
             Fill(StreamKind_Last, StreamPos_Last, Fill_Parameter(StreamKind_Last, Generic_StreamSize), StreamSize, true);
@@ -230,6 +277,10 @@ void File_Riff::Streams_Finish ()
                     Fill(Stream_Video, StreamPos_Last, Video_FrameRate_Mode, "VFR");
                 }
             }
+
+            //Hack - SMPTE ST 337, RIFF channels count is wrong
+            if (StreamKind_Last==Stream_Audio && Retrieve(Stream_Audio, StreamPos_Last, Audio_MuxingMode)==__T("AES3") && Temp->second.Parsers[0]->Get(Stream_Audio, 0, Audio_Channel_s_).empty())
+                Clear(Stream_Audio, StreamPos_Last, Audio_Channel_s_);
 
             //Alignment
             if (StreamKind_Last==Stream_Audio && Count_Get(Stream_Video)>0) //Only if this is not a WAV file
@@ -313,7 +364,7 @@ void File_Riff::Streams_Finish ()
             #endif
         }
         else if (StreamKind_Last!=Stream_General)
-            Fill(StreamKind_Last, StreamPos_Last, General_ID, ((Temp->first>>24)-'0')*10+(((Temp->first>>16)&0xFF)-'0'));
+            Fill(StreamKind_Last, StreamPos_Last, General_ID, ID);
 
         //Duration
         if (Temp->second.PacketCount>0)
@@ -407,7 +458,7 @@ void File_Riff::Streams_Finish ()
                         if (Stream_Structure_Temp->second.Name==Temp->first)
                             Audio_FirstBytes+=Stream_Structure_Temp->second.Size;
                     }
-                    if (Audio_FirstBytes && Retrieve(Stream_Audio, StreamPos_Last, Audio_BitRate).To_int32u())
+                    if (Audio_FirstBytes && Temp->second.AvgBytesPerSec)
                     {
                         Fill(Stream_Audio, StreamPos_Last, "Interleave_Preload", Audio_FirstBytes*1000/Temp->second.AvgBytesPerSec);
                         Fill(Stream_Audio, StreamPos_Last, "Interleave_Preload/String", Retrieve(Stream_Audio, StreamPos_Last, "Interleave_Preload")+__T(" ")+MediaInfoLib::Config.Language_Get(__T("ms")));
@@ -454,11 +505,6 @@ void File_Riff::Streams_Finish ()
         Fill(Stream_General, 0, General_Interleaved, ((Interleaved0_1<Interleaved1_1 && Interleaved0_10>Interleaved1_1)
                                                    || (Interleaved1_1<Interleaved0_1 && Interleaved1_10>Interleaved0_1))?"Yes":"No");
 
-    //Time codes
-    TimeCode_Fill(__T("ISMP"), INFO_ISMP);
-    TimeCode_Fill(__T("tc_A"), Tdat_tc_A);
-    TimeCode_Fill(__T("tc_O"), Tdat_tc_O);
-
     //MD5
     size_t Pos=0;
     for (size_t StreamKind=Stream_General+1; StreamKind<Stream_Max; StreamKind++)
@@ -468,14 +514,6 @@ void File_Riff::Streams_Finish ()
                 Fill((stream_t)StreamKind, StreamPos, "MD5", MD5s[Pos]);
                 Pos++;
             }
-
-    //Purge what is not needed anymore
-    if (!File_Name.empty()) //Only if this is not a buffer, with buffer we can have more data
-    {
-        Stream.clear();
-        Stream_Structure.clear();
-        delete DV_FromHeader; DV_FromHeader=NULL;
-    }
 
     //Commercial names
     if (Count_Get(Stream_Video)==1)
@@ -522,6 +560,8 @@ void File_Riff::Read_Buffer_Init()
          if (Demux_Rate==0)
              Demux_Rate=25; //Default value
     #endif //MEDIAINFO_DEMUX
+
+    PAR=0;
 }
 
 //---------------------------------------------------------------------------
@@ -584,6 +624,10 @@ size_t File_Riff::Read_Buffer_Seek (size_t Method, int64u Value, int64u /*ID*/)
 //---------------------------------------------------------------------------
 void File_Riff::Read_Buffer_Unsynched()
 {
+    for (std::map<int32u, stream>::iterator Stream_Item=Stream.begin(); Stream_Item!=Stream.end(); ++Stream_Item)
+        for (size_t Pos=0; Pos<Stream_Item->second.Parsers.size(); Pos++)
+            Stream_Item->second.Parsers[Pos]->Open_Buffer_Unsynch();
+
     if (IsSub)
     {
         while(Element_Level)
@@ -596,6 +640,20 @@ void File_Riff::Read_Buffer_Unsynched()
         #endif //defined(MEDIAINFO_ANCILLARY_YES)
     }
 }
+
+//---------------------------------------------------------------------------
+#if MEDIAINFO_DEMUX
+void File_Riff::Read_Buffer_Continue()
+{
+    if (Demux_Parser)
+    {
+        Open_Buffer_Continue(Demux_Parser, Buffer+Buffer_Offset, 0, false);
+        Demux_Parser=NULL;
+        //if (Config->Demux_EventWasSent)
+        //    return;
+    }
+}
+#endif //MEDIAINFO_DEMUX
 
 //***************************************************************************
 // Buffer
@@ -636,7 +694,12 @@ bool File_Riff::Header_Begin()
         if (Buffer_Offset+(size_t)Element_Size>Buffer_Size)
             return false;
 
+        // Fake header
         Element_Begin0();
+        Element_Begin0();
+        Header_Fill_Size(Buffer_DataToParse_End-(File_Offset+Buffer_Offset));
+        Element_End();
+
         switch (Kind)
         {
             case Kind_Wave : WAVE_data_Continue(); break;
@@ -658,6 +721,13 @@ bool File_Riff::Header_Begin()
         }
         Element_Offset=0;
         Element_End0();
+
+        if (Status[IsFinished] || (File_GoTo!=(int64u)-1 && (File_GoTo<=Buffer_DataToParse_Begin || File_GoTo>=Buffer_DataToParse_End)))
+        {
+            Buffer_DataToParse_Begin=(int64u)-1;
+            Buffer_DataToParse_End=0;
+            return false;
+        }
 
         if (Buffer_Offset>=Buffer_Size)
             return false;
@@ -849,7 +919,10 @@ void File_Riff::Header_Parse()
     if ((Name==Elements::WAVE_data || Name==Elements::AIFF_SSND))
     {
         Buffer_DataToParse_Begin=File_Offset+Buffer_Offset+8;
-        Buffer_DataToParse_End=File_Offset+Buffer_Offset+8+Size_Complete;
+        if (Size_Complete)
+            Buffer_DataToParse_End=File_Offset+Buffer_Offset+8+Size_Complete;
+        else
+            Buffer_DataToParse_End=File_Size; //Found one file with 0 as size of data part
         Size_Complete=0;
     }
 
@@ -867,7 +940,17 @@ bool File_Riff::BookMark_Needed()
 
     Stream_Structure_Temp=Stream_Structure.begin();
     if (!Stream_Structure.empty())
-        GoTo(Stream_Structure_Temp->first);
+    {
+        #if MEDIAINFO_MD5
+            if (Config->File_Md5_Get())
+            {
+                GoTo(0);
+                Md5_ParseUpTo=Stream_Structure_Temp->first;
+            }
+            else
+        #endif //MEDIAINFO_MD5
+                GoTo(Stream_Structure_Temp->first);
+    }
     NeedOldIndex=false;
     SecondPass=true;
     Index_Pos.clear(); //We didn't succeed to find theses indexes :(
@@ -881,29 +964,13 @@ bool File_Riff::BookMark_Needed()
 //---------------------------------------------------------------------------
 void File_Riff::TimeCode_Fill(const Ztring &Name, const Ztring &Value)
 {
-    float64 FrameRate=Retrieve(Stream_Video, 0, Video_FrameRate).To_float64();
-    if (Value.size()==11 && FrameRate)
+    if (Value.empty())
+        return;
+
+    for (size_t StreamPos=0; StreamPos<Count_Get(Stream_Video); StreamPos++)
     {
-        for (size_t StreamKind=Stream_General+1; StreamKind<Stream_Max; StreamKind++)
-            for (size_t StreamPos=0; StreamPos<Count_Get((stream_t)StreamKind); StreamPos++)
-            {
-                int64u Delay=0;
-                Delay+=(Value[0]-__T('0'))*10*60*60*1000;
-                Delay+=(Value[1]-__T('0'))   *60*60*1000;
-                Delay+=(Value[3]-__T('0'))   *10*60*1000;
-                Delay+=(Value[4]-__T('0'))      *60*1000;
-                Delay+=(Value[6]-__T('0'))      *10*1000;
-                Delay+=(Value[7]-__T('0'))         *1000;
-
-                int64u Frames=0;
-                Frames+=(Value[ 9]-__T('0'))*10;
-                Frames+=(Value[10]-__T('0'));
-                Delay+=float64_int64s((1000/FrameRate)*Frames);
-
-                Fill((stream_t)StreamKind, StreamPos, Fill_Parameter((stream_t)StreamKind, Generic_Delay), Delay);
-                Fill((stream_t)StreamKind, StreamPos, Fill_Parameter((stream_t)StreamKind, Generic_Delay_Source), __T("Container (")+Name+__T(")"));
-                Fill((stream_t)StreamKind, StreamPos, Fill_Parameter((stream_t)StreamKind, Generic_Delay_String4), Value);
-            }
+        Fill(Stream_Video, StreamPos, Video_TimeCode_FirstFrame, Value);
+        Fill(Stream_Video, StreamPos, Video_TimeCode_Source, Name);
     }
 }
 

@@ -1,21 +1,8 @@
-// File_Mpeg4_TimeCode - Info for MPEG-4 TimeCode  files
-// Copyright (C) 2009-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -35,6 +22,7 @@
 
 //---------------------------------------------------------------------------
 #include "MediaInfo/Multiple/File_Mpeg4_TimeCode.h"
+#include "MediaInfo/TimeCode.h"
 //---------------------------------------------------------------------------
 
 namespace MediaInfoLib
@@ -74,6 +62,14 @@ void File_Mpeg4_TimeCode::Streams_Fill()
         }
 
         Fill(Stream_General, 0, "Delay", Pos_Temp*1000/FrameRate_WithDF, 0);
+
+        TimeCode TC(Pos_Temp, NumberOfFrames, DropFrame);
+        Stream_Prepare(Stream_Other);
+        Fill(Stream_Other, StreamPos_Last, Other_Type, "Time code");
+        Fill(Stream_Other, StreamPos_Last, Other_TimeCode_FirstFrame, TC.ToString().c_str());
+        if (Frame_Count==1)
+            Fill(Stream_Other, StreamPos_Last, Other_TimeCode_Settings, "Striped");
+
     }
 }
 
@@ -98,6 +94,8 @@ void File_Mpeg4_TimeCode::Read_Buffer_Continue()
     }
 
     FILLING_BEGIN();
+        Frame_Count+=Element_Size/4;
+
         if (!Status[IsAccepted])
         {
             Accept("TimeCode");

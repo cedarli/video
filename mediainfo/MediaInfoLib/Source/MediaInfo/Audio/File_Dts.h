@@ -1,21 +1,8 @@
-// File_Dts - Info for DTS files
-// Copyright (C) 2004-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 #ifndef MediaInfo_DtsH
@@ -44,7 +31,6 @@ public :
 
     //Constructor/Destructor
     File_Dts();
-    ~File_Dts();
 
 private :
     //Streams management
@@ -57,14 +43,12 @@ private :
     //Buffer - Synchro
     bool Synchronize();
     bool Synched_Test();
+    void Read_Buffer_Unsynched();
 
     //Buffer - Demux
     #if MEDIAINFO_DEMUX
     bool Demux_UnpacketizeContainer_Test();
     #endif //MEDIAINFO_DEMUX
-
-    //Buffer - Global
-    void Read_Buffer_Continue ();
 
     //Buffer - Per element
     void Header_Parse();
@@ -83,11 +67,16 @@ private :
     void HD_XBR(int64u Size);
     void HD_XSA(int64u Size);
 
+    //Buffer
+    bool FrameSynchPoint_Test();
+    const int8u* Save_Buffer;
+    size_t Save_Buffer_Offset;
+    size_t Save_Buffer_Size;
+
     //Temp
-    std::map<int32u, int64u> HD_Sizes;
     std::vector<ZenLib::int32u> Asset_Sizes;
     Ztring Profile;
-    File__Analyze* Parser; //14 bits or Little Endian
+    int32u Original_Size;
     int32u HD_size;
     int16u Primary_Frame_Byte_Size;
     int16u Number_Of_PCM_Sample_Blocks;

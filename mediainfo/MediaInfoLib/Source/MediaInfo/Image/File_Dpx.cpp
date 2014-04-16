@@ -1,21 +1,8 @@
-// File_Dpx - Info for DPX (SMPTE 268M) files
-// Copyright (C) 2010-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -302,7 +289,7 @@ void File_Dpx::Streams_Accept()
 
     if (!IsSub)
     {
-        Streams_Accept_TestContinuousFileNames();
+        TestContinuousFileNames();
 
         Stream_Prepare((Config->File_Names.size()>1 || Config->File_IsReferenced_Get())?Stream_Video:Stream_Image);
         Fill(StreamKind_Last, StreamPos_Last, "StreamSize", File_Size);
@@ -432,15 +419,15 @@ void File_Dpx::Data_Parse()
     do
         Sizes_Pos++; //We go automaticly to the next block
     while (Sizes_Pos<Sizes.size() && Sizes[Sizes_Pos]==0);
-    if (Sizes_Pos==Sizes.size())
+    if (Sizes_Pos>=Sizes.size())
     {
         Sizes.clear();
         Sizes_Pos=0;
 
         if (!Status[IsFilled])
             Fill();
-        if (Config->ParseSpeed<1.0)
-            Finish();
+        if (File_Offset+Buffer_Offset+Element_Size<Config->File_Current_Size)
+            GoTo(Config->File_Current_Size);
     }
 }
 
@@ -519,6 +506,8 @@ void File_Dpx::GenericSectionHeader_v1()
 
     FILLING_BEGIN();
         //Coherency tests
+        if (File_Offset+Buffer_Offset+Size_Total>=Config->File_Current_Size)
+            Size_Total=(int32u)(Config->File_Current_Size-(File_Offset+Buffer_Offset)); //The total size is bigger than the real size
         if (Size_Generic+Size_Industry+Size_User>Size_Header || Size_Header>Size_Total)
         {
             Reject();
@@ -639,8 +628,10 @@ void File_Dpx::GenericSectionHeader_v2()
 
     FILLING_BEGIN();
         //Coherency tests
+        if (File_Offset+Buffer_Offset+Size_Total!=Config->File_Current_Size)
+            Size_Total=(int32u)(Config->File_Current_Size-(File_Offset+Buffer_Offset)); //The total size is bigger than the real size
         if (Size_Generic==(int32u)-1)
-            Size_Generic=Element_Size;
+            Size_Generic=(int32u)Element_Size;
         if (Size_Industry==(int32u)-1)
             Size_Industry=0;
         if (Size_User==(int32u)-1)
@@ -706,6 +697,7 @@ void File_Dpx::GenericSectionHeader_v2_ImageElement()
             Fill(StreamKind_Last, StreamPos_Last, "Format", "DPX");
             Fill(StreamKind_Last, StreamPos_Last, "Format_Version", "Version 2");
             Fill(StreamKind_Last, StreamPos_Last, "BitDepth", BitDephs);
+            Fill(StreamKind_Last, StreamPos_Last, "colour_description_present", "Yes");
             Fill(StreamKind_Last, StreamPos_Last, "colour_primaries", DPX_TransferCharacteristic(TransferCharacteristic));
             Fill(StreamKind_Last, StreamPos_Last, "transfer_characteristics", DPX_ColorimetricSpecification(ColorimetricSpecification));
         }
@@ -823,6 +815,9 @@ void File_Dpx::ImageData()
     Frame_Count++;
     if (Frame_Count_NotParsedIncluded!=(int64u)-1)
         Frame_Count_NotParsedIncluded++;
+
+    if (Config->ParseSpeed<1.0)
+        Finish("DPX"); //No need of more
 }
 
 //***************************************************************************

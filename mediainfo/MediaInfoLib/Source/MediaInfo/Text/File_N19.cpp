@@ -1,21 +1,8 @@
-// File_N19 - Info for N19 files
-// Copyright (C) 2010-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -35,6 +22,10 @@
 
 //---------------------------------------------------------------------------
 #include "MediaInfo/Text/File_N19.h"
+#include "MediaInfo/MediaInfo_Config_MediaInfo.h"
+#if MEDIAINFO_EVENTS
+    #include "MediaInfo/MediaInfo_Events_Internal.h"
+#endif //MEDIAINFO_EVENTS
 using namespace std;
 //---------------------------------------------------------------------------
 
@@ -195,6 +186,21 @@ const char* N19_LanguageCode(int16u LC)
 }
 
 //***************************************************************************
+// Constructor/Destructor
+//***************************************************************************
+
+//---------------------------------------------------------------------------
+File_N19::File_N19()
+:File__Analyze()
+{
+    //Configuration
+    #if MEDIAINFO_EVENTS
+        ParserIDs[0]=MediaInfo_Parser_N19;
+        StreamIDs_Width[0]=0;
+    #endif //MEDIAINFO_EVENTS
+}
+
+//***************************************************************************
 // Buffer - File header
 //***************************************************************************
 
@@ -316,8 +322,30 @@ void File_N19::FileHeader_Parse()
 
         //Init
         FirstFrame_TCI=(int64u)-1;
+        #if MEDIAINFO_DEMUX
+            Frame_Count=0;
+            TCO_Latest=(int64u)-1;
+        #endif //MEDIAINFO_DEMUX
     FILLING_END();
 }
+
+//***************************************************************************
+// Buffer - Global
+//***************************************************************************
+
+//---------------------------------------------------------------------------
+#if MEDIAINFO_SEEK
+size_t File_N19::Read_Buffer_Seek (size_t Method, int64u Value, int64u ID)
+{
+    #if MEDIAINFO_DEMUX
+        TCO_Latest=(int64u)-1;
+    #endif //MEDIAINFO_DEMUX
+
+    GoTo(0x400);
+    Open_Buffer_Unsynch();
+    return 1;
+}
+#endif //MEDIAINFO_SEEK
 
 //***************************************************************************
 // Buffer - Per element
@@ -368,7 +396,7 @@ void File_N19::Data_Parse()
         {
             Fill(Stream_Text, 0, Text_Duration, TCO-FirstFrame_TCI);
         }
-        else
+        else if (Config->ParseSpeed<1.0)
             //Jumping
             GoToFromEnd(128, "N19");
     FILLING_END();

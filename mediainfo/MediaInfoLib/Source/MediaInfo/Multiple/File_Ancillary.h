@@ -1,20 +1,9 @@
-// File_Ancillary - Info for Ancillary (SMPTE ST291) streams
-// Copyright (C) 2010-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 // Information about Ancillary data (SMPTE ST291)
@@ -46,8 +35,10 @@ public :
     bool    WithChecksum;
     bool    HasBFrames;
     bool    InDecodingOrder;
+    bool    LineNumber_IsSecondField;
     float64 AspectRatio;
     float64 FrameRate;
+    int32u  LineNumber;
 
     //In/Out
     struct buffered_data
@@ -73,6 +64,9 @@ public :
     #if defined(MEDIAINFO_AFDBARDATA_YES)
         std::vector<buffered_data*> AfdBarData_Data;
     #endif //defined(MEDIAINFO_AFDBARDATA_YES)
+    #if defined(MEDIAINFO_ARIBSTDB24B37_YES)
+        File__Analyze*  AribStdB34B37_Parser;
+    #endif //defined(MEDIAINFO_ARIBSTDB24B37_YES)
 
     //Constructor/Destructor
     File_Ancillary();

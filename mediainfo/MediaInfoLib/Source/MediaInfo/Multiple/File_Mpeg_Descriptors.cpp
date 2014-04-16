@@ -1,21 +1,8 @@
-// File_Mpeg_Descriptors - Info for MPEG files
-// Copyright (C) 2007-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -60,6 +47,7 @@ namespace Elements
     const int32u DTS3=0x44545333; //DTS
     const int32u GA94=0x47413934; //ATSC - Terrestrial
     const int32u HDMV=0x48444D56; //BluRay
+    const int32u HEVC=0x48455643; //HEVC
     const int32u KLVA=0x4B4C5641; //KLV Packets
     const int32u S14A=0x53313441; //ATSC - Satellite
     const int32u SCTE=0x53435445; //SCTE
@@ -629,6 +617,7 @@ const char* Mpeg_Descriptors_registration_format_identifier_Format(int32u format
         case Elements::DTS3 : return "DTS"; //2048
         case Elements::GA94 : return "ATSC - Terrestrial";
         case Elements::HDMV : return "Blu-ray";
+        case Elements::HEVC : return "HEVC";
         case Elements::KLVA : return "KLV";
         case Elements::S14A : return "ATSC - Satellite";
         case Elements::SCTE : return "SCTE 54 2003 - DV Service Multiplex and Transport System for Cable Television";
@@ -648,6 +637,7 @@ stream_t Mpeg_Descriptors_registration_format_identifier_StreamKind(int32u forma
         case Elements::DTS1 : return Stream_Audio;
         case Elements::DTS2 : return Stream_Audio;
         case Elements::DTS3 : return Stream_Audio;
+        case Elements::HEVC : return Stream_Video;
         case Elements::VC_1 : return Stream_Video;
         default :             return Stream_Max;
     }
@@ -681,6 +671,7 @@ const char* Mpeg_Descriptors_stream_Format(int8u descriptor_tag, int32u format_i
                 case Elements::DTS2 : return "DTS";
                 case Elements::DTS3 : return "DTS";
                 case Elements::KLVA : return "KLV";
+                case Elements::HEVC : return "HEVC";
                 case Elements::VC_1 : return "VC-1";
                 case Elements::drac : return "Dirac";
                 default                     :
@@ -727,6 +718,7 @@ const char* Mpeg_Descriptors_stream_Codec(int8u descriptor_tag, int32u format_id
                 case Elements::DTS2 : return "DTS";
                 case Elements::DTS3 : return "DTS";
                 case Elements::KLVA : return "KLV";
+                case Elements::HEVC : return "HEVC";
                 case Elements::VC_1 : return "VC-1";
                 case Elements::drac : return "Dirac";
                 default                     :
@@ -772,6 +764,7 @@ stream_t Mpeg_Descriptors_stream_Kind(int8u descriptor_tag, int32u format_identi
                 case Elements::DTS1 : return Stream_Audio;
                 case Elements::DTS2 : return Stream_Audio;
                 case Elements::DTS3 : return Stream_Audio;
+                case Elements::HEVC : return Stream_Video;
                 case Elements::VC_1 : return Stream_Video;
                 case Elements::drac : return Stream_Video;
                 default                     :
@@ -1299,6 +1292,18 @@ void File_Mpeg_Descriptors::Data_Parse()
             ELEMENT_CASE(2D, "MPEG-4_text");
             ELEMENT_CASE(2E, "MPEG-4_audio_extension");
             ELEMENT_CASE(2F, "Auxiliary_video_data");
+            ELEMENT_CASE(30, "SVC extension");
+            ELEMENT_CASE(31, "MVC extension");
+            ELEMENT_CASE(32, "J2K video");
+            ELEMENT_CASE(33, "MVC operation point");
+            ELEMENT_CASE(34, "MPEG2_stereoscopic_video_format");
+            ELEMENT_CASE(35, "Stereoscopic_program_info");
+            ELEMENT_CASE(36, "Stereoscopic_video_info");
+            ELEMENT_CASE(37, "ODUpdate");
+            ELEMENT_CASE(38, "Transport_profile");
+            ELEMENT_CASE(39, "HEVC video");
+            ELEMENT_CASE(3A, "HEVC timing and HRD");
+            ELEMENT_CASE(3F, "Extension");
 
             //Following is in private sections, in case there is not network type detected
             ELEMENT_CASE(40, "DVB - network_name_descriptor");
@@ -1377,6 +1382,12 @@ void File_Mpeg_Descriptors::Data_Parse()
             ELEMENT_CASE(A9, "ATSC - DCC Arriving Request");
             ELEMENT_CASE(AA, "ATSC - Redistribution Control");
             ELEMENT_CASE(AB, "ATSC - DCC Location Code");
+            ELEMENT_CASE(C1, "ARIB - Digital Copy Control");
+            ELEMENT_CASE(C8, "ARIB - Video Decode Control");
+            ELEMENT_CASE(DE, "ARIB - Content Availability");
+            ELEMENT_CASE(FC, "ARIB - Emergency Information");
+            ELEMENT_CASE(FD, "ARIB - Data Component");
+
             default: if (Element_Code>=0x40)
                         Element_Info1("user private");
                      else
@@ -1577,7 +1588,7 @@ void File_Mpeg_Descriptors::Descriptor_03()
     Skip_S1(3,                                                  "reserved");
     BS_End();
 
-    FILLING_BEGIN()
+    FILLING_BEGIN();
         if (elementary_PID_IsValid)
         {
             Complete_Stream->Streams[elementary_PID]->Infos["BitRate_Mode"]=variable_rate_audio_indicator?__T("VBR"):__T("CBR");
@@ -1609,6 +1620,15 @@ void File_Mpeg_Descriptors::Descriptor_05()
                                         break;
                             case true : //Per PES
                                         Complete_Stream->Streams[elementary_PID]->registration_format_identifier=format_identifier;
+                                        Complete_Stream->Streams[elementary_PID]->Infos["format_identifier"]=Ztring().From_CC4(format_identifier);
+                                        if (Complete_Stream->Streams[elementary_PID]->Infos["format_identifier"].size()!=4)
+                                        {
+                                            Ztring Temp; Temp.From_Number(format_identifier, 16);
+                                            if (Temp.size()<8)
+                                                Temp.insert(0, 8-Temp.size(), __T('0'));
+                                            Complete_Stream->Streams[elementary_PID]->Infos["format_identifier"]=__T("0x")+Temp;
+                                        }
+                                        Complete_Stream->Streams[elementary_PID]->Infos_Option["format_identifier"]=__T("N NT");
                                         if (format_identifier==Elements::KLVA)
                                         {
                                             Complete_Stream->Streams[elementary_PID]->Infos["Format"]=__T("KLV");
@@ -1617,6 +1637,22 @@ void File_Mpeg_Descriptors::Descriptor_05()
                                         //Coherency
                                         if (stream_type==0x81 && Complete_Stream->Streams[elementary_PID]->registration_format_identifier==Elements::BSSD)
                                             Complete_Stream->Streams[elementary_PID]->registration_format_identifier=0x00000000; //Reseting it, this combinaision is not possible but a stream has it
+                                        break;
+                        }
+                        break;
+            default    : ;
+        }
+    FILLING_ELSE()
+        switch (table_id)
+        {
+            case 0x02 : //program_map_section
+                        switch (elementary_PID_IsValid)
+                        {
+                            case false : //Per program
+                                        break;
+                            case true : //Per PES
+                                        Complete_Stream->Streams[elementary_PID]->Infos["format_identifier"]=__T("(INVALID)");
+                                        Complete_Stream->Streams[elementary_PID]->Infos_Option["format_identifier"]=__T("N NT");
                                         break;
                         }
                         break;
@@ -2728,6 +2764,22 @@ void File_Mpeg_Descriptors::Descriptor_81()
 //---------------------------------------------------------------------------
 void File_Mpeg_Descriptors::Descriptor_86()
 {
+    if (event_id_IsValid)
+    {
+        Complete_Stream->Sources[table_id_extension].ATSC_EPG_Blocks[Complete_Stream->Streams[pid]->table_type].Events[event_id].Eia708_Languages.clear();
+        Complete_Stream->Sources[table_id_extension].ATSC_EPG_Blocks[Complete_Stream->Streams[pid]->table_type].Events[event_id].Eia608_IsPresent=false;
+    }
+    else if (elementary_PID_IsValid)
+    {
+        Complete_Stream->Streams[elementary_PID]->Eia708_Languages.clear();
+        Complete_Stream->Streams[elementary_PID]->Eia608_IsPresent=false;
+    }
+    else if (program_number_IsValid)
+    {
+        Complete_Stream->Transport_Streams[transport_stream_id].Programs[program_number].Eia708_Languages.clear();
+        Complete_Stream->Transport_Streams[transport_stream_id].Programs[program_number].Eia608_IsPresent=false;
+    }
+
     //Parsing
     Ztring Text, Language1, Language2;
     int8u number_of_services;
@@ -2739,10 +2791,10 @@ void File_Mpeg_Descriptors::Descriptor_86()
     for (int8u Pos=0; Pos<number_of_services; Pos++)
     {
         Element_Begin1("service");
-        Ztring language;
+        string language;
         int8u caption_service_number;
         bool digital_cc;
-        Get_Local(3, language,                                  "language");
+        Get_String(3, language,                                 "language");
         BS_Begin();
         Get_SB (digital_cc,                                     "digital_cc");
         Skip_SB(                                                "reserved");
@@ -2753,7 +2805,6 @@ void File_Mpeg_Descriptors::Descriptor_86()
             bool line21_field;
             Skip_S1(5,                                          "reserved");
             Get_SB (   line21_field,                            "line21_field");
-            caption_service_number=128+(line21_field?2:1);
         }
         Skip_SB(                                                "easy_reader");
         Skip_SB(                                                "wide_aspect_ratio");
@@ -2763,13 +2814,39 @@ void File_Mpeg_Descriptors::Descriptor_86()
 
         if (event_id_IsValid)
         {
-            if (Complete_Stream->Sources[table_id_extension].ATSC_EPG_Blocks[Complete_Stream->Streams[pid]->table_type].Events[event_id].Languages[caption_service_number].empty()) //We use only the first detected value
-                Complete_Stream->Sources[table_id_extension].ATSC_EPG_Blocks[Complete_Stream->Streams[pid]->table_type].Events[event_id].Languages[caption_service_number]=language;
+            if (digital_cc)
+            {
+                string &Value=Complete_Stream->Sources[table_id_extension].ATSC_EPG_Blocks[Complete_Stream->Streams[pid]->table_type].Events[event_id].Eia708_Languages[caption_service_number];
+                if (!Value.empty())
+                    Value+=" / ";
+                Value+=language;
+            }
+            else
+                Complete_Stream->Sources[table_id_extension].ATSC_EPG_Blocks[Complete_Stream->Streams[pid]->table_type].Events[event_id].Eia608_IsPresent=true;
         }
-        if (elementary_PID_IsValid)
+        else if (elementary_PID_IsValid)
         {
-            if (Complete_Stream->Streams[elementary_PID]->Languages[caption_service_number].empty()) //We use only the first detected value
-                Complete_Stream->Streams[elementary_PID]->Languages[caption_service_number]=language;
+            if (digital_cc)
+            {
+                string &Value=Complete_Stream->Streams[elementary_PID]->Eia708_Languages[caption_service_number];
+                if (!Value.empty())
+                    Value+=" / ";
+                Value+=language;
+            }
+            else
+                Complete_Stream->Streams[elementary_PID]->Eia608_IsPresent=true;
+        }
+        else if (program_number_IsValid)
+        {
+            if (digital_cc)
+            {
+                string &Value=Complete_Stream->Transport_Streams[transport_stream_id].Programs[program_number].Eia708_Languages[caption_service_number];
+                if (!Value.empty())
+                    Value+=" / ";
+                Value+=language;
+            }
+            else
+                Complete_Stream->Transport_Streams[transport_stream_id].Programs[program_number].Eia608_IsPresent=true;
         }
     }
 }
@@ -2881,6 +2958,89 @@ void File_Mpeg_Descriptors::Descriptor_AA()
 {
     //Parsing
     Skip_XX(Element_Size,                                       "rc_information");
+}
+
+//---------------------------------------------------------------------------
+void File_Mpeg_Descriptors::Descriptor_C1()
+{
+    // ARIB B15
+
+    //Parsing
+    int8u copy_control_type;
+    bool  maximum_bit_rate_flag, component_control_flag;
+    BS_Begin();
+    Skip_S1(2,                                                  "digital_recording_control_data");
+    Get_SB (   maximum_bit_rate_flag,                           "maximum_bit_rate_flag ");
+    Get_SB (   component_control_flag,                          "component_control_flag ");
+    Get_S1 (2, copy_control_type,                               "copy_control_type");
+    //Skip_S1(2,                                                  (copy_control_type&0x1)?"copy_control_type":"reserved_future_use");
+    BS_End();
+
+    while (Element_Offset<Element_Size)
+        Skip_B1(                                                "(ToDo)");
+}
+
+//---------------------------------------------------------------------------
+void File_Mpeg_Descriptors::Descriptor_C8()
+{
+    //Parsing
+    Skip_XX(Element_Size,                                       "?");
+}
+
+//---------------------------------------------------------------------------
+void File_Mpeg_Descriptors::Descriptor_DE()
+{
+    // ARIB B15
+
+    //Parsing
+    BS_Begin();
+    Skip_SB(                                                    "reserved_future_use");
+    Skip_SB(                                                    "copy_restriction_mode");
+    Skip_SB(                                                    "image_constraint_token");
+    Skip_SB(                                                    "retention_mode");
+    Skip_S1(3,                                                  "retention_state");
+    Skip_SB(                                                    "encryption_mode");
+    BS_End();
+
+    while (Element_Offset<Element_Size)
+        Skip_B1(                                                "reserved_future_use");
+}
+
+//---------------------------------------------------------------------------
+void File_Mpeg_Descriptors::Descriptor_FC()
+{
+    //Parsing
+    Skip_XX(Element_Size,                                       "?");
+}
+
+//---------------------------------------------------------------------------
+void File_Mpeg_Descriptors::Descriptor_FD()
+{
+    //Parsing
+    int16u data_component_id;
+    Get_B2 (data_component_id,                                  "data_component_id");
+
+    while (Element_Offset<Element_Size)
+        Skip_B1(                                                "?");
+
+    if (data_component_id==0x0008)
+    {
+        //Is maybe ARIB caption
+
+        FILLING_BEGIN();
+            switch (table_id)
+            {
+                case 0x02 : //program_map_section
+                            if (elementary_PID_IsValid)
+                            {
+                                Complete_Stream->Streams[elementary_PID]->Infos["Format"]=__T("ARIB STD B24/B37");
+                                //Complete_Stream->Streams[elementary_PID]->StreamKind=Stream_Text;
+                            }
+                            break;
+                default    : ;
+            }
+        FILLING_END();
+    }
 }
 
 //---------------------------------------------------------------------------

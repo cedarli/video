@@ -1,21 +1,8 @@
-// File_DtvccTransport - Info for DTVCC Transport strams
-// Copyright (C) 2010-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //---------------------------------------------------------------------------
 // Pre-compilation
@@ -123,6 +110,7 @@ void File_DtvccTransport::Streams_Update_PerStream(size_t Pos)
     Update(Streams[Pos]->Parser);
 
     if (Streams[Pos]->Parser)
+    {
         for (size_t Pos2=0; Pos2<Streams[Pos]->Parser->Count_Get(Stream_Text); Pos2++)
         {
             Stream_Prepare(Stream_Text);
@@ -130,6 +118,11 @@ void File_DtvccTransport::Streams_Update_PerStream(size_t Pos)
             Fill(Stream_Text, StreamPos_Last, "MuxingMode", Format==Format_DVD?__T("DVD-Video"):__T("DTVCC Transport"));
             Fill(Stream_Text, StreamPos_Last, Text_ID, Streams[Pos]->Parser->Retrieve(Stream_Text, Pos2, Text_ID), true);
         }
+
+        Ztring LawRating=Streams[Pos]->Parser->Retrieve(Stream_General, 0, General_LawRating);
+        if (!LawRating.empty())
+            Fill(Stream_General, 0, General_LawRating, LawRating, true);
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -232,23 +225,27 @@ void File_DtvccTransport::Read_Buffer_Continue()
                         Streams[Parser_Pos]=new stream;
                     if (Streams[Parser_Pos]->Parser==NULL)
                     {
-                        if (cc_type<2)
-                        {
-                            #if defined(MEDIAINFO_EIA608_YES)
-                                Streams[Parser_Pos]->Parser=new File_Eia608();
-                                ((File_Eia608*)Streams[Parser_Pos]->Parser)->cc_type=cc_type;
-                            #else
-                                Streams[Parser_Pos]->Parser=new File__Analyze();
-                            #endif
-                        }
-                        else
-                        {
-                            #if defined(MEDIAINFO_EIA708_YES)
-                                Streams[Parser_Pos]->Parser=new File_Eia708();
-                            #else
-                                Streams[Parser_Pos]->Parser=new File__Analyze();
-                            #endif
-                        }
+                        #if defined(MEDIAINFO_EIA608_YES) || defined(MEDIAINFO_EIA708_YES)
+                            if (cc_type<2)
+                            {
+                                #if defined(MEDIAINFO_EIA608_YES)
+                                    Streams[Parser_Pos]->Parser=new File_Eia608();
+                                    ((File_Eia608*)Streams[Parser_Pos]->Parser)->cc_type=cc_type;
+                                #else //defined(MEDIAINFO_EIA608_YES)
+                                    Streams[Parser_Pos]->Parser=new File__Analyze();
+                                #endif //defined(MEDIAINFO_EIA608_YES)
+                            }
+                            else
+                            {
+                                #if defined(MEDIAINFO_EIA708_YES)
+                                    Streams[Parser_Pos]->Parser=new File_Eia708();
+                                #else //defined(MEDIAINFO_EIA708_YES)
+                                    Streams[Parser_Pos]->Parser=new File__Analyze();
+                                #endif //defined(MEDIAINFO_EIA708_YES)
+                            }
+                        #else //defined(MEDIAINFO_EIA608_YES) || defined(MEDIAINFO_EIA708_YES)
+                            Streams[Parser_Pos]->Parser=new File__Analyze();
+                        #endif //defined(MEDIAINFO_EIA608_YES) || defined(MEDIAINFO_EIA708_YES)
                         Open_Buffer_Init(Streams[Parser_Pos]->Parser);
                     }
                     Demux(Buffer+(size_t)(Buffer_Offset+Element_Offset), 2, ContentType_MainStream);
@@ -271,7 +268,7 @@ void File_DtvccTransport::Read_Buffer_Continue()
                             if (cc_type==3)
                             {
                                 ((File_Eia708*)Streams[2]->Parser)->cc_type=4; //Magic value saying that the buffer must be kept (this is only a point of synchro from the undelying layer)
-                                Streams[2]->Parser->Open_Buffer_Continue(Streams[Parser_Pos]->Parser, Buffer+(size_t)(Buffer_Offset+Element_Offset), 0);
+                                Open_Buffer_Continue(Streams[Parser_Pos]->Parser, Buffer+(size_t)(Buffer_Offset+Element_Offset), 0);
                                 ((File_Eia708*)Streams[2]->Parser)->cc_type=3;
                             }
                         }

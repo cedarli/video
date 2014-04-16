@@ -1,25 +1,12 @@
-// File_Png - Info for PNG files
-// Copyright (C) 2005-2012 MediaArea.net SARL, Info@MediaArea.net
-//
-// This library is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Library General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// any later version.
-//
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Library General Public License for more details.
-//
-// You should have received a copy of the GNU Library General Public License
-// along with this library. If not, see <http://www.gnu.org/licenses/>.
-//
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+/*  Copyright (c) MediaArea.net SARL. All Rights Reserved.
+ *
+ *  Use of this source code is governed by a BSD-style license that can
+ *  be found in the License.html file in the root of the source tree.
+ */
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// PNG - Format
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//
+// Information about PNG files
 //
 // From http://www.fileformat.info/format/png/
 //
@@ -106,7 +93,7 @@ void File_Png::Streams_Accept()
 {
     if (!IsSub)
     {
-        Streams_Accept_TestContinuousFileNames();
+        TestContinuousFileNames();
 
         Stream_Prepare((Config->File_Names.size()>1 || Config->File_IsReferenced_Get())?Stream_Video:Stream_Image);
         Fill(StreamKind_Last, StreamPos_Last, "StreamSize", File_Size);
@@ -280,40 +267,43 @@ void File_Png::IHDR()
     Get_B1 (Interlace_method,                                   "Interlace method");
 
     FILLING_BEGIN_PRECISE();
-        Fill(StreamKind_Last, 0, "Width", Width);
-        Fill(StreamKind_Last, 0, "Height", Height);
-        int8u Resolution;
-        switch (Colour_type)
+        if (!Status[IsFilled])
         {
-            case 0 : Resolution=Bit_depth; break;
-            case 2 : Resolution=Bit_depth*3; break;
-            case 3 : Resolution=Bit_depth; break;
-            case 4 : Resolution=Bit_depth*2; break;
-            case 6 : Resolution=Bit_depth*4; break;
-            default: Resolution=0;
-        }
-        if (Resolution)
-            Fill(StreamKind_Last, 0, "BitDepth", Resolution);
-        switch (Compression_method)
-        {
-            case 0 :
-                Fill(StreamKind_Last, 0, "Format_Compression", "LZ77");
-                break;
-            default: ;
-        }
-        switch (Interlace_method)
-        {
-            case 0 :
-                break;
-            case 1 :
-                break;
-            default: ;
+            Fill(StreamKind_Last, 0, "Width", Width);
+            Fill(StreamKind_Last, 0, "Height", Height);
+            int8u Resolution;
+            switch (Colour_type)
+            {
+                case 0 : Resolution=Bit_depth; break;
+                case 2 : Resolution=Bit_depth*3; break;
+                case 3 : Resolution=Bit_depth; break;
+                case 4 : Resolution=Bit_depth*2; break;
+                case 6 : Resolution=Bit_depth*4; break;
+                default: Resolution=0;
+            }
+            if (Resolution)
+                Fill(StreamKind_Last, 0, "BitDepth", Resolution);
+            switch (Compression_method)
+            {
+                case 0 :
+                    Fill(StreamKind_Last, 0, "Format_Compression", "LZ77");
+                    break;
+                default: ;
+            }
+            switch (Interlace_method)
+            {
+                case 0 :
+                    break;
+                case 1 :
+                    break;
+                default: ;
+            }
+
+            Fill();
         }
 
-    if (Status[IsFilled])
-        Fill();
-    if (Config->ParseSpeed<1.0)
-        Finish("PNG"); //No need of more
+        if (Config->ParseSpeed<1.0)
+            Finish("PNG"); //No need of more
     FILLING_END();
 }
 
